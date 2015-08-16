@@ -1,81 +1,97 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import shutil
-import argparse
 import os
-from mutagen.flac import FLAC
-from os import listdir
-from fuzzywuzzy import fuzz
 
-ntag = 0
-full = 0
-nvan = 0
-nap = 0
-
-
-def metaprint(meta):
-    for tag in meta:
-        print("%s: %s" % (tag, meta[tag]))
+from mutagen.flac import FLAC  # Used for metadata handling.
+from os import listdir  # Used for general operations.
+from fuzzywuzzy import fuzz  # Last resource name association.
+# Insert here the root directory of your library and device respectively.
+lib = ''
+dev = ''
 
 
-def comptag(tgtf, srcf):
-    # print srcf
-    if (not os.path.isfile(tgtf)):
-        files = listdir(os.path.dirname(tgtf))
-        diffs = []
-        for song in files:
-            diffs.append(fuzz.ratio(song, os.path.basename(srcf)))
-        bmatch = os.path.dirname(tgtf) + '/' + files[diffs.index(max(diffs))]
-        os.rename(bmatch, os.path.dirname(tgtf) + '/' + os.path.basename(srcf))
-    tagtgt = FLAC(tgtf)
-    tagsrc = FLAC(srcf)
-    if (set(tagtgt) != set(tagsrc)):
-        newtags = list(set(tagtgt) - set(tagsrc))
-        for tag in newtags:
-            tagsrc["%s" % tag] = tagtgt[tag]
-            tagsrc.save(srcf)
-    for tag in tagtgt:
-        if tagtgt[tag] != tagsrc[tag]:
-            ntag += 1
-            print(
-                "There's a difference! The %s field doesn't match." % tag)
-            tagsrc[tag] = tagtgt[tag]
-            tagsrc.save(srcf)
-            metaprint(tagsrc)
-    print("Done comparing tags.")
+# Checks for new and deleted folders and returns their name.
+def check_folder(SrcDir, TgtDir):
+    # Lists Source and Target folder.
+    Source = listdir(SrcDir)
+    Target = listdir(TgtDir)
+    # Then creates a list of deprecated and new directories.
+    Deleted = [Filename for Filename in Target if Filename not in Source]
+    Added = [FileName for FileName in Source if Filename not in Target]
+    # Returns both lists.
+    return (Added, Deleted)
 
-parser = argparse.ArgumentParser(description='Manages music libraries')
-parser.add_argument(
-    '-full', help='Runs a full scan automatically', action='store_true')
-args = parser.parse_args()
-if args.full:
-    full = 1
-dev = '/home/bernardo/Musync/F2/'  # Your device.
-lib = '/home/bernardo/Musync/F1/'  # Your music folder.
-R1 = listdir(dev)
-R2 = listdir(lib)
-vanished = [filename for filename in R1 if filename not in R2]
-appeared = [filename for filename in R2 if filename not in R1]
-if vanished:
-    for folder in vanished:
-        shutil.rmtree(dev + folder)
-        nvan += 1
-        print("Deprecated folders successfuly deleted.")
-else:
-    print("No folders to delete from the device.")
-if appeared:
-    for folder in appeared:
-        shutil.copytree(lib + folder, dev + folder)
-        nap += 1
-        print("New folders successfuly moved.")
-else:
-    print("No new folders to move.")
-inopt = input("Would you like to do a filechange scan? (Y/n)")
-if (inopt == 'y' or inopt == 'Y' or inopt == '1' or full):
-    for artist in R2:
-        for album in listdir(lib + artist):
-            for song in listdir(lib + artist + '/' + album):
-                comptag(dev + artist + '/' + album + '/' + song,
-                        lib + artist + '/' + album + '/' + song)
-print('Sync complete. %d items deleted, %d items moved and %d files changed' %
-      (nvan, nap, ntag))
+
+# Checks for song in case there's a name mismatch or missing file.
+def check_song(SrcFile, TgtDir):
+    Matches = []
+    # Invariably the new name will be that of the source file, the issue here
+    # is finding which song is the correct one.
+    NewName = TgtDir + '/' + os.path.basename(SrcFile)
+    TagSource = FLAC(SrcFile)
+    # Grabs the number of samples in the original file.
+    SourceSamples = TagSource.info.total_samples
+    # Checks if any song has a matching sample number and if true appends the
+    # song's filename to Matches[]
+    for Song in listdir(TgtDir):
+        SongInfo = FLAC(TgtDir + '/' + Song)
+        if (SongInfo.info.total_samples == SourceSamples):
+            Matches.append(Song)
+    # If two songs have the same sample rate (44100Hz for CDs) and the same
+    # length it matches them to the source by filename similarity.
+    if (Matches.count > 1):
+        Diffs = []
+        for Song in Matches:
+            Diffs.append(fuzz.ratio(Song, os.path.basename(SrcFile)))
+        BestMatch = TgtDir + '/' + Matches[Diffs.index(max(Diffs))]
+        os.rename(BestMatch, NewName)
+    # If there's no match at all simply copy over the missing file.
+    elif (Matches.count == 0):
+        shutil.copy(SrcFile, TgtDir)
+    # If a single match is found the filename will be the first item on the
+    # Matches[] list.
+    else:
+        os.rename(TgtDir + '/' + Matches[0], NewName)
+
+
+# Syncs folders in a directory and return the change count.
+def sync(SrcDir, TgtDir):
+    AddCount = 0
+    DeleteCount = 0
+    # Grabs the folders to be added and deleted.
+    NewDir, OldDir = check_folder(SrcDir, TgtDir)
+    # Checks if any and then does add/rm.
+    if OldDir:
+        for Folder in OldDir:
+            shutil.rmtree(TgtDir + Folder)
+            DeleteCount += 1
+    if NewDir:
+        for Folder in NewDir:
+            shutil.copytree(SrcDir + Folder, TgtDir + Folder)
+            AddCount += 1
+    return(AddCount, DeleteCount)
+
+
+# Fixes missing metadata fields.
+def fix_metadata(SrcFile, TgtFile):
+    TagSource = FLAC(TgtFile)
+    TagTarget = FLAC(SrcFile)
+    # Checks for deleted tags on source file and deletes them from target.
+    if (set(TagTarget) - set(TagSource)):
+        OldTags = list(set(TagTarget) - set(TagSource))
+        for Tag in OldTags:
+            # TODO Right now I haven't quite figured out how to delete
+            # specific tags, so workaround is to delete them all.
+            TagTarget.delete()
+    # Checks for new tags on source file and transfers them to target.
+    if (set(TagSource) != set(TagTarget)):
+        NewTags = list(set(TagSource) - set(TagTarget))
+        for Tag in NewTags:
+            TagTarget["%s" % Tag] = TagSource[Tag]
+            TagTarget.save(TgtFile)
+
+
+def match_metadata(SrcFile, TgtFile):
+    # TODO: Will do the metadata transfer between two files.
+    return()
