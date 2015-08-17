@@ -8,7 +8,7 @@ Musync makes synchronizing your music library and your player device easy. It au
 * Smart file finder for altered file names.
 * Highly and easily modifiable.
 
-### Under development Features
+### #TODO
 * MP3 support, only FLAC currently.
 * Album art updating.
 * Faster metadata fixing.
