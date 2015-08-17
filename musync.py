@@ -44,8 +44,11 @@ def check_song(SrcFile, TgtDir):
         Diffs = []
         for Song in Matches:
             Diffs.append(fuzz.ratio(Song, os.path.basename(SrcFile)))
-        BestMatch = TgtDir + '/' + Matches[Diffs.index(max(Diffs))]
-        os.rename(BestMatch, NewName)
+        if (max(Diffs) > 0.8):
+            BestMatch = TgtDir + '/' + Matches[Diffs.index(max(Diffs))]
+            os.rename(BestMatch, NewName)
+        else:
+            shutil.copy(SrcFile, TgtDir)
     # If there's no match at all simply copy over the missing file.
     elif (Matches.count == 0):
         shutil.copy(SrcFile, TgtDir)
@@ -92,6 +95,57 @@ def fix_metadata(SrcFile, TgtFile):
             TagTarget.save(TgtFile)
 
 
+# Does metadata transfer between two files.
 def match_metadata(SrcFile, TgtFile):
-    # TODO: Will do the metadata transfer between two files.
-    return()
+    Altered = 0
+    TagSource = FLAC(SrcFile)
+    TagTarget = FLAC(TgtFile)
+    # For every different Tag in source song copy it over to target and save.
+    for Tag in TagSource:
+        if TagSource[Tag] != TagTarget[Tag]:
+            Altered += 1
+            TagTarget[Tag] = TagSource[Tag]
+            TagTarget.save(TgtFile)
+    return(Altered)
+
+
+# Simply does directory formatting to make things easier.
+def make_dir(Main, Second, Third=""):
+    # Replaces \ with /
+    Main = Main.replace('\\', '/')
+    # Adds a / to the end of Main and concatenates Main and Second.
+    if(Main[len(Main) - 1] != '/'):
+        Main += '/'
+    Main += Second + '/'
+    # Concatenates Main and Third if necessary.
+    if (Third):
+        Main += Third + '/'
+    return (Main)
+
+# Sync main folders in lib with dev.
+sync(lib, dev)
+# For every Artist in lib sync it's Albums
+for Artist in listdir(lib):
+    sync(make_dir(lib, Artist), make_dir(dev, Artist))
+    # For every Album in Artist match songs
+    for Album in listdir(make_dir(lib, Artist)):
+        # Declares lib Album and dev Album to make function calls shorter.
+        CurrentAlbum = make_dir(lib, Artist, Album)
+        CoAlbum = make_dir(dev, Artist, Album)
+        for Song in listdir(CurrentAlbum):
+            try:
+                # Tries to match lib and dev song's metadata.
+                match_metadata(CurrentAlbum + Song, CoAlbum + Song)
+            except:
+                # If that fails will try to fix both Filename and Tag fields.
+                check_song(CurrentAlbum + Song, CoAlbum)
+                fix_metadata(CurrentAlbum + Song, CoAlbum + Song)
+                try:
+                    # Try again after fix.
+                    match_metadata(CurrentAlbum + Song, CoAlbum + Song)
+                except Exception as e:
+                    # If it still doesn't work there's black magic in place,
+                    # go sleep, drink a beer and try again later.
+                    print("""Ehm, something happened and your sync failed.\n Error:
+                          {}""".format(e))
+                    raise SystemExit(0)
