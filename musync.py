@@ -7,8 +7,59 @@ from mutagen.flac import FLAC  # Used for metadata handling.
 from os import listdir  # Used for general operations.
 from fuzzywuzzy import fuzz  # Last resource name association.
 # Insert here the root directory of your library and device respectively.
-lib = ''
-dev = ''
+lib = 'C:/Users/berna/Desktop/Lib/'
+dev = 'C:/Users/berna/Desktop/Dev/'
+
+
+# Faster file copying function, arguments go as follows: Source file location,
+# target directory, whether to keep the filename intact and whether to create
+# the target directory in case it doesn't exist.
+def copy_file(SrcFile, TgtDir, KeepName=True, MakeDir=True):
+    SourceFile = None
+    TargetFile = None
+    KeepGoing = False
+    # Checks is TgtDir is valid and creates if needed.
+    if MakeDir and not os.path.isdir(TgtDir):
+        os.makedirs(TgtDir)
+    # Processes TgtDir depending on filename choice.
+    if KeepName is True:
+        TgtDir += os.path.basename(SrcFile)
+        print(TgtDir)
+    try:
+        SourceFile = open(SrcFile, 'rb')
+        TargetFile = open(TgtDir, 'wb')
+        KeepGoing = True
+        Count = 0
+        while KeepGoing:
+            # Read blocks of size 2**20 = 1048576
+            Buffer = SourceFile.read(2 ** 20)
+            if not Buffer:
+                break
+            TargetFile.write(Buffer)
+            Count += len(Buffer)
+    finally:
+        if TargetFile:
+            TargetFile.close()
+        if SourceFile:
+            SourceFile.close()
+    return KeepGoing
+
+
+# XXX TODO
+# Copies a directory (SrcDir) to TgtDir, if Replace is True will delete same
+# name directory and replace with new one.
+def copy_tree(SrcDir, TgtDir, Replace=True):
+    if not os.path.isdir(TgtDir):
+        os.makedirs(TgtDir)
+    Target = format_dir(TgtDir, os.path.basename(SrcDir))
+    if os.path.isdir(Target) and Replace:
+        shutil.rmtree(Target)
+    if not os.path.isdir(Target):
+        os.makedirs(Target)
+    for File in listdir(SrcDir):
+        FileDir = format_dir(SrcDir, File)
+        # copy_file(FileDir, Tgt)
+    return()
 
 
 # Checks for new and deleted folders and returns their name.
@@ -17,8 +68,8 @@ def check_folder(SrcDir, TgtDir):
     Source = listdir(SrcDir)
     Target = listdir(TgtDir)
     # Then creates a list of deprecated and new directories.
-    Deleted = [Filename for Filename in Target if Filename not in Source]
-    Added = [FileName for FileName in Source if Filename not in Target]
+    Deleted = [FileName for FileName in Target if FileName not in Source]
+    Added = [FileName for FileName in Source if FileName not in Target]
     # Returns both lists.
     return (Added, Deleted)
 
@@ -100,7 +151,7 @@ def match_metadata(SrcFile, TgtFile):
     Altered = 0
     TagSource = FLAC(SrcFile)
     TagTarget = FLAC(TgtFile)
-    # For every different Tag in source song copy it over to target and save.
+    # For every different Tag in source song copy it to target and save.
     for Tag in TagSource:
         if TagSource[Tag] != TagTarget[Tag]:
             Altered += 1
@@ -110,7 +161,7 @@ def match_metadata(SrcFile, TgtFile):
 
 
 # Simply does directory formatting to make things easier.
-def make_dir(Main, Second, Third=""):
+def format_dir(Main, Second, Third=""):
     # Replaces \ with /
     Main = Main.replace('\\', '/')
     # Adds a / to the end of Main and concatenates Main and Second.
@@ -126,26 +177,28 @@ def make_dir(Main, Second, Third=""):
 sync(lib, dev)
 # For every Artist in lib sync it's Albums
 for Artist in listdir(lib):
-    sync(make_dir(lib, Artist), make_dir(dev, Artist))
+    sync(format_dir(lib, Artist), format_dir(dev, Artist))
     # For every Album in Artist match songs
-    for Album in listdir(make_dir(lib, Artist)):
+    for Album in listdir(format_dir(lib, Artist)):
         # Declares lib Album and dev Album to make function calls shorter.
-        CurrentAlbum = make_dir(lib, Artist, Album)
-        CoAlbum = make_dir(dev, Artist, Album)
+        CurrentAlbum = format_dir(lib, Artist, Album)
+        CoAlbum = format_dir(dev, Artist, Album)
         for Song in listdir(CurrentAlbum):
-            try:
-                # Tries to match lib and dev song's metadata.
-                match_metadata(CurrentAlbum + Song, CoAlbum + Song)
-            except:
-                # If that fails will try to fix both Filename and Tag fields.
-                check_song(CurrentAlbum + Song, CoAlbum)
-                fix_metadata(CurrentAlbum + Song, CoAlbum + Song)
+            if (".flac" or ".FLAC" in Song):
                 try:
-                    # Try again after fix.
+                    # Tries to match lib and dev song's metadata.
                     match_metadata(CurrentAlbum + Song, CoAlbum + Song)
-                except Exception as e:
-                    # If it still doesn't work there's black magic in place,
-                    # go sleep, drink a beer and try again later.
-                    print("""Ehm, something happened and your sync failed.\n Error:
-                          {}""".format(e))
-                    raise SystemExit(0)
+                except:
+                    # If that fails will try to fix both Filename and Tag
+                    # fields.
+                    check_song(CurrentAlbum + Song, CoAlbum)
+                    fix_metadata(CurrentAlbum + Song, CoAlbum + Song)
+                    try:
+                        # Try again after fix.
+                        match_metadata(CurrentAlbum + Song, CoAlbum + Song)
+                    except Exception as e:
+                        # If it still doesn't work there's black magic in place
+                        # go sleep, drink a beer and try again later.
+                        print("""Ehm, something happened and your sync failed.\n
+                              Error:{}""".format(e))
+                        raise SystemExit(0)
