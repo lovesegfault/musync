@@ -22,7 +22,7 @@ def copy_file(SrcFile, TgtDir, KeepName=True, MakeDir=True):
     if MakeDir and not os.path.isdir(TgtDir):
         os.makedirs(TgtDir)
     # Processes TgtDir depending on filename choice.
-    if KeepName is True:
+    if KeepName:
         TgtDir += os.path.basename(SrcFile)
         print(TgtDir)
     try:
@@ -58,8 +58,7 @@ def copy_tree(SrcDir, TgtDir, Replace=True):
         os.makedirs(Target)
     for File in listdir(SrcDir):
         FileDir = format_dir(SrcDir, File)
-        # copy_file(FileDir, Tgt)
-    return()
+        copy_file(FileDir, Target)
 
 
 # Checks for new and deleted folders and returns their name.
@@ -122,7 +121,7 @@ def sync(SrcDir, TgtDir):
             DeleteCount += 1
     if NewDir:
         for Folder in NewDir:
-            shutil.copytree(SrcDir + Folder, TgtDir + Folder)
+            copy_tree(format_dir(SrcDir, Folder), format_dir(TgtDir, Folder))
             AddCount += 1
     return(AddCount, DeleteCount)
 
@@ -184,7 +183,7 @@ for Artist in listdir(lib):
         CurrentAlbum = format_dir(lib, Artist, Album)
         CoAlbum = format_dir(dev, Artist, Album)
         for Song in listdir(CurrentAlbum):
-            if (".flac" or ".FLAC" in Song):
+            if (".flac" in Song or ".FLAC" in Song):
                 try:
                     # Tries to match lib and dev song's metadata.
                     match_metadata(CurrentAlbum + Song, CoAlbum + Song)
