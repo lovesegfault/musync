@@ -11,7 +11,7 @@ Musync makes synchronizing your music library and your player device easy. It au
 ### #TODO
 * MP3 support, only FLAC currently.
 * Album art updating.
-* Faster metadata fixing.
+* ~~Faster metadata fixing.~~ :white_check_mark:
 * MD5 checksum for transfer safety.
 * Input folders in command line
 * GUI
