@@ -14,13 +14,11 @@ dev = 'C:/Users/berna/Desktop/Dev/'
 # Faster file copying function, arguments go as follows: Source file location,
 # target directory, whether to keep the filename intact and whether to create
 # the target directory in case it doesn't exist.
-def copy_file(SrcFile, TgtDir, KeepName=True, MakeDir=True):
+def copy_file(SrcFile, TgtDir, KeepName=True):
     SourceFile = None
     TargetFile = None
     KeepGoing = False
-    # Checks is TgtDir is valid and creates if needed.
-    if MakeDir and not os.path.isdir(TgtDir):
-        os.makedirs(TgtDir)
+
     # Processes TgtDir depending on filename choice.
     if KeepName:
         TgtDir += os.path.basename(SrcFile)
@@ -45,20 +43,42 @@ def copy_file(SrcFile, TgtDir, KeepName=True, MakeDir=True):
     return KeepGoing
 
 
-# XXX TODO
-# Copies a directory (SrcDir) to TgtDir, if Replace is True will delete same
-# name directory and replace with new one.
-def copy_tree(SrcDir, TgtDir, Replace=True):
+# XXX Ugly workaround-ish, needs improvement.
+# Copies a directory (SrcDir) to TgtDir
+def copy_tree(SrcDir, TgtDir, Replace=True, Repeated=False):
+    # Checks if function is being used for self-recursiveness.
+    if not Repeated:
+        # If not handles folder naming (check function call to understand this
+        # is a weird workaround that just happened to work and I ain't touching
+        # it no more.
+        TgtDir = format_dir(TgtDir, os.path.basename(SrcDir.rstrip("/")))
     if not os.path.isdir(TgtDir):
         os.makedirs(TgtDir)
-    Target = format_dir(TgtDir, os.path.basename(SrcDir))
-    if os.path.isdir(Target) and Replace:
-        shutil.rmtree(Target)
-    if not os.path.isdir(Target):
-        os.makedirs(Target)
-    for File in listdir(SrcDir):
-        FileDir = format_dir(SrcDir, File)
-        copy_file(FileDir, Target)
+    # Makes Subs as all files and folders in the folder to be copied.
+    Subs = listdir(SrcDir)
+    Errors = []
+    # For every subdirectory/file in Source
+    for Sub in Subs:
+        # Process filenames to remove last "/" and pick Src/Sub and Tgt/Sub
+        SrcName = format_dir(SrcDir, Sub).rstrip("/")
+        TgtName = format_dir(TgtDir, Sub).rstrip("/")
+        # Using try because file operatins are nasty business.
+        try:
+            # If it's a dir inside a dir we use this very function to copy it,
+            # recursiveness at it's best. Can cause a whole bunch of weird
+            # behaviour, don't mess with it too much.
+            if os.path.isdir(SrcName):
+                copy_tree(SrcName, TgtName, Repeated=True)
+            # If it's just a file call copy_file and that's it, KeepName is set
+            # as false because it's function is being done by the very logic
+            # of this for loop.
+            else:
+                copy_file(SrcName, TgtName, KeepName=False)
+        # If things get kinky grab the error and report.
+        except (IOError, os.error) as why:
+            Errors.append((SrcName, TgtName, str(why)))
+        if Errors:
+            raise Exception(Errors)
 
 
 # Checks for new and deleted folders and returns their name.
@@ -121,7 +141,7 @@ def sync(SrcDir, TgtDir):
             DeleteCount += 1
     if NewDir:
         for Folder in NewDir:
-            copy_tree(format_dir(SrcDir, Folder), format_dir(TgtDir, Folder))
+            copy_tree(format_dir(SrcDir, Folder), TgtDir)
             AddCount += 1
     return(AddCount, DeleteCount)
 
