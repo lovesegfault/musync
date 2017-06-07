@@ -1,6 +1,7 @@
 // Syncs directories
 use std::io::Result;
-use std::path::{Path, PathBuf};
+use std::result;
+use std::path::{Path, PathBuf, StripPrefixError};
 use std::fs;
 use probe;
 
@@ -8,19 +9,29 @@ use probe;
 /// WARNING: Deletes anything previously in dst
 pub fn copy(src: &Path, dst: &Path, depth: Option<u32>)-> Result<Vec<PathBuf>> {
     clear_dir(dst)?;
-    let mut synced_files: Vec<PathBuf> = Vec::new();
+    let mut synced_objects: Vec<PathBuf> = Vec::new();
+
+    let source_dirs = probe::directories(src, depth)?;
+    for dir in source_dirs{
+        fs::create_dir_all(make_path(src, dir.as_path(), dst)?)?;
+        synced_objects.push(dir);
+    }
+
     let source_files = probe::files(src, depth)?;
     for file in source_files{
-        fs::copy(&file, make_path(file.as_path(), dst))?;
-        synced_files.push(file);
+        fs::copy(&file, make_path(src, file.as_path(), dst)?)?;
+        synced_objects.push(file);
     }
-    Ok(synced_files)
+
+
+    synced_objects.sort();
+    Ok(synced_objects)
 }
 
-fn make_path(orig: &Path, dst: &Path) -> PathBuf{
-    let mut parts = orig.components();
-    let _ = parts.next();
-    dst.join(parts.as_path())
+/// Corrects a path for copying
+/// https://stackoverflow.com/questions/44419890/replacing-path-parts-in-rust
+fn make_path(src: &Path, file: &Path, dst: &Path) -> Result<PathBuf> {
+    Ok(dst.join(file.strip_prefix(src)?))
 }
 
 fn clear_dir(src: &Path)-> Result<()>{

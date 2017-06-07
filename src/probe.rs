@@ -20,7 +20,7 @@ pub fn objects(dir: &Path, depth: Option<u32>) -> Result<Vec<PathBuf>> {
         if metadata.is_dir() && depth != Some(0) {
             object_list.extend(objects(object_path.as_path(), depth.map(|d| d - 1))?); // Recursion
         }
-        object_list.push(object_path); // Add object to list
+        object_list.push(object_path.canonicalize()?); // Add object to list
     }
     object_list.sort(); // Sort result
     Ok(object_list)
@@ -39,7 +39,7 @@ pub fn files(dir: &Path, depth: Option<u32>) -> Result<Vec<PathBuf>> {
             // Recursion for directories
             file_list.extend(files(object_path.as_path(), depth.map(|d| d - 1))?);
         } else {
-            file_list.push(object_path.to_path_buf()); // Add path to result vector
+            file_list.push(object_path.canonicalize()?); // Add path to result vector
         }
     }
     file_list.sort(); // read_dir doesn't order things, so we do that here.
@@ -55,10 +55,10 @@ pub fn directories(dir: &Path, depth: Option<u32>) -> Result<Vec<PathBuf>> {
         let object_path = object?.path(); // Unwrap object, we only need it's path
         let metadata = fs::metadata(&object_path)?; // Get metadata
         if metadata.is_dir() {
-            dir_list.push(object_path.to_path_buf()); // Add dir to result
+            dir_list.push(object_path.canonicalize()?); // Add dir to result
             if depth != Some(0) {
                 // Recursion
-                dir_list.extend(directories(object_path.as_path(), depth.map(|d| d - 1))?)
+                dir_list.extend(directories(object_path.canonicalize()?.as_path(), depth.map(|d| d - 1))?)
             }
         }
     }
