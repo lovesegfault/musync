@@ -1,11 +1,13 @@
 // Syncs directories
+use std::error::Error;
 use std::io;
-use std::result;
+use std::fmt;
 use std::path::{Path, PathBuf, StripPrefixError};
 use std::fs;
 use probe;
 
-enum SyncError {
+#[derive(Debug)]
+pub enum SyncError {
     IO(io::Error),
     Prefix(StripPrefixError),
 }
@@ -19,6 +21,21 @@ impl From<io::Error> for SyncError {
 impl From<StripPrefixError> for SyncError {
     fn from(error: StripPrefixError) -> Self {
         SyncError::Prefix(error)
+    }
+}
+
+impl fmt::Display for SyncError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            SyncError::IO(ref e) => write!(f, "An IO error occurred while syncing: {}", e),
+            SyncError::Prefix(ref e) => write!(f, "A prefix error occurred while syncing: {}", e),
+        }
+    }
+}
+
+impl Error for SyncError {
+    fn description(&self) -> &str {
+        "Error occured during syncing"
     }
 }
 
@@ -47,7 +64,7 @@ pub fn copy(src: &Path, dst: &Path, depth: Option<u32>) -> Result<Vec<PathBuf>, 
 
 /// Corrects a path for copying
 /// https://stackoverflow.com/questions/44419890/replacing-path-parts-in-rust
-fn make_path(src: &Path, file: &Path, dst: &Path) -> io::Result<PathBuf> {
+fn make_path(src: &Path, file: &Path, dst: &Path) -> Result<PathBuf, SyncError> {
     Ok(dst.join(file.strip_prefix(src)?))
 }
 
