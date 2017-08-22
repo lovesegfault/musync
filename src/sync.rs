@@ -73,7 +73,7 @@ fn clear_dir(src: &Path) -> Result<(), SyncError> {
     for file in file_list {
         fs::remove_file(file.as_path())?;
     }
-    let subdir_list = probe::files(src, None)?;
+    let subdir_list = probe::directories(src, None)?;
     for dir in subdir_list {
         fs::remove_dir_all(dir.as_path())?;
     }
