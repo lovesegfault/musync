@@ -121,3 +121,8 @@ pub fn changed(src: &Path, dst: &Path, depth: Option<u32>) -> Result<Vec<PathBuf
     }
     Ok(changed_files)
 }
+
+#[cfg(test)]
+mod tests {
+    
+}

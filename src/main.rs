@@ -5,7 +5,8 @@ mod test;
 
 
 fn soft_quit<E>(error: &E) -> !
-    where E: ::std::error::Error
+where
+    E: ::std::error::Error,
 {
     println!("Error: {}", error);
     std::process::exit(1);
@@ -17,10 +18,10 @@ fn main() {
     //let dst = path::Path::new("/mnt/veracrypt1/Music/");
 
     let test_path = path::Path::new("/home/meurer/test");
-    test::mk_test_dirs(&test_path, None, 10);
+    test::mk_test(test_path, 1, 10);
 
-    let src = path::Path::new("/home/meurer/test/a");
-    let dst = path::Path::new("/home/meurer/test/b");
+    //let src = path::Path::new("/home/meurer/test/a");
+    //let dst = path::Path::new("/home/meurer/test/b");
 
     /*
     let mut obj_list = probe::objects(src, None).unwrap_or_else(|e| soft_quit(&e));
