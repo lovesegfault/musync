@@ -2,6 +2,7 @@ extern crate blake2;
 extern crate byteorder;
 extern crate claxon;
 extern crate magic;
+//extern crate rayon;
 extern crate simplemad;
 
 use std::fmt;
@@ -10,7 +11,8 @@ use std::path::PathBuf;
 use self::blake2::{Blake2b, Digest};
 use self::byteorder::{LittleEndian, WriteBytesExt};
 use self::magic::{Cookie, CookieFlags};
-use self::simplemad::{Decoder, Frame};
+//use self::simplemad::{Decoder, Frame};
+//use self::rayon::prelude::*;
 
 pub enum Filetype {
     WAV,
@@ -39,6 +41,18 @@ pub enum CheckError {
     ClaxonError(claxon::Error),
     FiletypeError(String),
     IOError(io::Error),
+}
+
+impl fmt::Display for CheckError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            CheckError::FError(ref e) => write!(f, "File error: {}", e),
+            CheckError::MagicError(ref e) => write!(f, "Magic error: {}", e),
+            CheckError::ClaxonError(ref e) => write!(f, "Claxon error: {}", e),
+            CheckError::FiletypeError(ref e) => write!(f, "Filetype error: {}", e),
+            CheckError::IOError(ref e) => write!(f, "{}", e),
+        }
+    }
 }
 
 impl From<io::Error> for CheckError {
@@ -101,6 +115,7 @@ fn flac_check(fpath: PathBuf) -> Result<String, CheckError> {
     let mut frame_reader = reader.blocks();
     let mut block = claxon::Block::empty();
     let mut buffer = vec![];
+
     loop {
         match frame_reader.read_next_or_eof(block.into_buffer()) {
             Ok(Some(next_block)) => block = next_block,
@@ -112,25 +127,26 @@ fn flac_check(fpath: PathBuf) -> Result<String, CheckError> {
                 buffer.write_i32::<LittleEndian>(block.sample(ch, s))?;
             }
         }
-
         hasher.input(&buffer);
         buffer.clear();
     }
+
     Ok(format!("{:x}", hasher.result()))
 }
 
-fn MP3_check(fpath: PathBuf) -> Result<String, CheckError> {
+/*
+fn mp3_check(fpath: PathBuf) -> Result<String, CheckError> {
     let mut hasher = Blake2b::new();
 
     Ok("Foo".to_owned())
 }
+*/
 
-pub fn check_file(fpath: PathBuf) -> Result<(), CheckError> {
+pub fn check_file(fpath: PathBuf) -> Result<String, CheckError> {
     let ftype = get_filetype(&fpath)?;
     match ftype {
-        Filetype::FLAC => println!("{}", flac_check(fpath)?),
+        Filetype::FLAC => Ok(flac_check(fpath)?),
         Filetype::MP3 => unimplemented!(),
         _ => unimplemented!(),
     }
-    Ok(())
 }
