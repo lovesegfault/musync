@@ -1,48 +1,26 @@
-use std::path;
-mod probe;
-mod sync;
-mod test;
+extern crate sled;
+extern crate time;
 
+mod db;
+mod checksum;
 
-fn soft_quit<E>(error: &E) -> !
-where
-    E: ::std::error::Error,
-{
-    println!("Error: {}", error);
-    std::process::exit(1);
-}
-
+use std::path::PathBuf;
 
 fn main() {
-    //let src = path::Path::new("/mnt/Media/Music/");
-    //let dst = path::Path::new("/mnt/veracrypt1/Music/");
+    //println!("Hello world!");
+    //let srv_db = db::DB::open("./serv.db".to_owned());
+    let songs = vec![
+        PathBuf::from("/home/bemeurer/src/musync/data/sweep-1Hz-96KHz.flac"),
+        //PathBuf::from("/home/bemeurer/src/musync/data/sweep-1Hz-96KHz.mp3"),
+        //PathBuf::from("/home/bemeurer/src/musync/data/sweep-1Hz-96KHz.ogg"),
+        //PathBuf::from("/home/bemeurer/src/musync/data/sweep-1Hz-96KHz.opus"),
+        //PathBuf::from("/home/bemeurer/src/musync/data/sweep-1Hz-96KHz.wav"),
+    ];
 
-    let test_path = path::Path::new("/home/meurer/test");
-    test::mk_test(test_path, 1, 10);
-
-    //let src = path::Path::new("/home/meurer/test/a");
-    //let dst = path::Path::new("/home/meurer/test/b");
-
-    /*
-    let mut obj_list = probe::objects(src, None).unwrap_or_else(|e| soft_quit(&e));
-    for obj in obj_list {
-        println!("{}", obj.display());
+    for song in songs {
+        let start = time::PreciseTime::now();
+        checksum::check_file(song);
+        let end = time::PreciseTime::now();
+        println!("Took: {}", start.to(end));
     }
-
-    println!("\n\n{} -> {}\n\n", src.display(), dst.display());
-
-    sync::copy(src, dst, None).unwrap_or_else(|e| soft_quit(&e));
-
-
-    obj_list = probe::objects(dst, None).unwrap_or_else(|e| soft_quit(&e));
-    for obj in obj_list {
-        println!("{}", obj.display());
-    }
-    */
-    /*let change_list = probe::changed(src, dst, None).unwrap_or_else(|e| soft_quit(&e));
-    println!("\n{:?} changed files: ", change_list.len());
-    for change in change_list{
-        println!("{:?}", change.display());
-    }
-*/
 }

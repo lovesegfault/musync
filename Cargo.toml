@@ -4,3 +4,25 @@ version = "0.1.0"
 authors = ["Bernardo Meurer <meurerbernardo@gmail.com>"]
 
 [dependencies]
+# Audio decoders
+magic = "0.12"
+claxon = "0.4"
+simplemad = "0.8"
+# Testing
+tempdir = "0.3"
+tempfile = "2.2"
+# Checksums
+blake2 = "0.7"
+byteorder = "1"
+# Database
+sled="0.14"
+# Misc
+filetime = "0.1"
+clap = "2"
+time="*"
+
+
+[profile.release]
+opt-level = 3
+debug = true
+lto = true
