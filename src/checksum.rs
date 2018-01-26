@@ -22,6 +22,22 @@ impl Checksum {
     fn new() -> Checksum {
         Checksum { checksum: [0u8; 64] }
     }
+
+    fn new_xored<II: AsRef<[u8]>, I: IntoIterator<Item=II>>(slices: I) -> Self {
+        let mut res = Checksum::default();
+        {
+            let acc = &mut res.checksum;
+            for sl in slices {
+                let sl = sl.as_ref();
+                debug_assert_eq!(sl.len(), acc.len());
+
+                for (a, b) in acc.iter_mut().zip(sl.iter()) {
+                    *a ^= *b;
+                }
+            }
+        }
+        res
+    }
 }
 
 impl Default for Checksum {
@@ -133,22 +149,6 @@ fn get_filetype(fpath: &PathBuf) -> Result<Filetype, CheckError> {
     }
 }
 
-fn xor_checksums<II: AsRef<[u8]>, I: IntoIterator<Item=II>>(slices: I) -> Checksum {
-    let mut res = Checksum::default();
-    {
-        let acc = &mut res.checksum;
-        for sl in slices {
-            let sl = sl.as_ref();
-            debug_assert_eq!(sl.len(), acc.len());
-
-            for (a, b) in acc.iter_mut().zip(sl.iter()) {
-                *a ^= *b;
-            }
-        }
-    }
-    res
-}
-
 fn as_u8_slice(buf: &[i32]) -> &[u8] {
     let b: &[u8] = unsafe {
         ::std::slice::from_raw_parts(buf.as_ptr() as *const u8, buf.len() * 4)
@@ -183,10 +183,7 @@ fn flac_check(fpath: PathBuf) -> Result<Checksum, CheckError> {
         }
     }
 
-    let res = hashers.into_iter().map(|x| x.result());
-
-    // Extract slices, XOR, return
-    Ok(xor_checksums(res))
+    Ok(Checksum::new_xored(hashers.into_iter().map(|x| x.result())))
 }
 
 /*
