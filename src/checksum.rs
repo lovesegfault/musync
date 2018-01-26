@@ -124,6 +124,7 @@ fn flac_check(fpath: PathBuf) -> Result<String, CheckError> {
         }
         for s in 0..block.len() {
             for ch in 0..block.channels() {
+                println!("---- sample(ch: {}, s:{}) = {}", ch, s, block.sample(ch, s));
                 buffer.write_i32::<LittleEndian>(block.sample(ch, s))?;
             }
         }
