@@ -2,6 +2,7 @@ extern crate blake2;
 extern crate byteorder;
 extern crate claxon;
 extern crate magic;
+extern crate smallvec;
 //extern crate rayon;
 extern crate simplemad;
 
@@ -11,6 +12,7 @@ use std::path::PathBuf;
 use self::blake2::{Blake2b, Digest};
 use self::byteorder::{ByteOrder, LittleEndian};
 use self::magic::{Cookie, CookieFlags};
+use self::smallvec::SmallVec;
 //use self::simplemad::{Decoder, Frame};
 //use self::rayon::prelude::*;
 
@@ -165,7 +167,8 @@ fn flac_check(fpath: PathBuf) -> Result<Checksum, CheckError> {
     let mut frame_reader = reader.blocks();
     let mut block_buffer: Vec<i32> = Vec::with_capacity(0x1_0000);
 
-    let mut hashers: Vec<Blake2b> = vec![Blake2b::new(); channels];
+    //let mut hashers: Vec<Blake2b> = vec![Blake2b::new(); channels];
+    let mut hashers = SmallVec::<[Blake2b; 8]>::from(vec![Blake2b::new(); channels]);
 
     while let Some(block) = frame_reader.read_next_or_eof(block_buffer)? {
         let duration = block.duration() as usize;
@@ -193,4 +196,12 @@ pub fn check_file(fpath: PathBuf) -> Result<Checksum, CheckError> {
         Filetype::MP3 => unimplemented!(),
         _ => unimplemented!(),
     }
+}
+
+#[cfg(tests)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_flac_check() {}
 }

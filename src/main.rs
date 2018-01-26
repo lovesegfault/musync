@@ -10,12 +10,8 @@ fn main() {
     //println!("Hello world!");
     //let srv_db = db::DB::open("./serv.db".to_owned());
     let songs = vec![
-        PathBuf::from("/home/bemeurer/src/musync/data/test-fail.flac"),
-        //PathBuf::from("/home/bemeurer/src/musync/data/sweep-1Hz-96KHz.flac"),
-        //PathBuf::from("/home/bemeurer/src/musync/data/sweep-1Hz-96KHz.mp3"),
-        //PathBuf::from("/home/bemeurer/src/musync/data/sweep-1Hz-96KHz.ogg"),
-        //PathBuf::from("/home/bemeurer/src/musync/data/sweep-1Hz-96KHz.opus"),
-        //PathBuf::from("/home/bemeurer/src/musync/data/sweep-1Hz-96KHz.wav"),
+        PathBuf::from("/home/bemeurer/src/musync/data/mono-sweep-1Hz-96KHz.flac"),
+        PathBuf::from("/home/bemeurer/src/musync/data/stereo-sweep-1Hz-96KHz.flac"),
     ];
 
     for song in songs {
@@ -26,6 +22,6 @@ fn main() {
         };
         let end = time::PreciseTime::now();
         println!("{}", check);
-        println!("Took: {}", start.to(end));
+        println!("Took: {:?}", start.to(end));
     }
 }
