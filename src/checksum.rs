@@ -173,6 +173,11 @@ fn flac_check(fpath: PathBuf) -> Result<Checksum, CheckError> {
 
         LittleEndian::from_slice_i32(&mut block_buffer);
 
+        // This relies on block_buffer containing `channel` * `duration` samples
+        // for each channel in succession, which is claxon implementation detail,
+        // and so might be broken on claxon update.
+        // Instead it could be rewritten with block.channel() and LittleEndian making a copy,
+        // but I'm too lazy to check how much that would be slower.
         for (hasher, chunk) in hashers.iter_mut().zip(block_buffer.chunks(duration)) {
             hasher.input(as_u8_slice(chunk));
         }
