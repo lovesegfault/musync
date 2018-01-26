@@ -15,13 +15,25 @@ use self::magic::{Cookie, CookieFlags};
 //use self::rayon::prelude::*;
 
 pub struct Checksum {
-    checksum: Vec<u8>,
+    checksum: [u8; 64],
+}
+
+impl Checksum {
+    fn new() -> Checksum {
+        Checksum { checksum: [0u8; 64] }
+    }
+}
+
+impl Default for Checksum {
+    fn default() -> Checksum {
+        Checksum::new()
+    }
 }
 
 impl fmt::Display for Checksum {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut res = String::new();
-        for s in &self.checksum {
+        for s in self.checksum.iter() {
             res += &format!("{:x}", s);
         }
         write!(f, "{}", res)
@@ -121,11 +133,11 @@ fn get_filetype(fpath: &PathBuf) -> Result<Filetype, CheckError> {
     }
 }
 
-fn xor_slices(slices: &[&[u8]]) -> Vec<u8> {
-    let res = vec![0u8; slices[0].len()];
+fn xor_checksums(slices: &[&[u8]]) -> Checksum {
+    slices.iter().fold(Checksum::default(), |mut acc, sl| {
+        debug_assert_eq!(sl.len(), acc.checksum.len());
 
-    slices.iter().fold(res, |mut acc, sl| {
-        for (a, b) in acc.iter_mut().zip(sl.iter()) {
+        for (a, b) in acc.checksum.iter_mut().zip(sl.iter()) {
             *a ^= b;
         }
         acc
@@ -171,9 +183,7 @@ fn flac_check(fpath: PathBuf) -> Result<Checksum, CheckError> {
     let res: Vec<_> = res.iter().map(|y| y.as_slice()).collect();
 
     // Extract slices, XOR, return
-    Ok(Checksum {
-        checksum: xor_slices(&res),
-    })
+    Ok(xor_checksums(&res))
 }
 
 /*
