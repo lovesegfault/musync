@@ -9,19 +9,47 @@ use std::fmt;
 use std::io;
 use std::path::PathBuf;
 use self::blake2::{Blake2b, Digest};
-use self::byteorder::{LittleEndian, WriteBytesExt};
+use self::byteorder::{ByteOrder, LittleEndian};
 use self::magic::{Cookie, CookieFlags};
 //use self::simplemad::{Decoder, Frame};
 //use self::rayon::prelude::*;
 
 pub struct Checksum {
-    checksum: Vec<u8>,
+    checksum: [u8; 64],
+}
+
+impl Checksum {
+    fn new() -> Checksum {
+        Checksum { checksum: [0u8; 64] }
+    }
+
+    fn new_xored<II: AsRef<[u8]>, I: IntoIterator<Item=II>>(slices: I) -> Self {
+        let mut res = Checksum::default();
+        {
+            let acc = &mut res.checksum;
+            for sl in slices {
+                let sl = sl.as_ref();
+                debug_assert_eq!(sl.len(), acc.len());
+
+                for (a, b) in acc.iter_mut().zip(sl.iter()) {
+                    *a ^= *b;
+                }
+            }
+        }
+        res
+    }
+}
+
+impl Default for Checksum {
+    fn default() -> Checksum {
+        Checksum::new()
+    }
 }
 
 impl fmt::Display for Checksum {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut res = String::new();
-        for s in &self.checksum {
+        for s in self.checksum.iter() {
             res += &format!("{:x}", s);
         }
         write!(f, "{}", res)
@@ -121,56 +149,41 @@ fn get_filetype(fpath: &PathBuf) -> Result<Filetype, CheckError> {
     }
 }
 
-fn xor_slices(slices: &[&[u8]]) -> Vec<u8> {
-    let res = vec![0u8; slices[0].len()];
-
-    slices.iter().fold(res, |mut acc, sl| {
-        for (a, b) in acc.iter_mut().zip(sl.iter()) {
-            *a ^= b;
-        }
-        acc
-    })
+fn as_u8_slice(buf: &[i32]) -> &[u8] {
+    let b: &[u8] = unsafe {
+        ::std::slice::from_raw_parts(buf.as_ptr() as *const u8, buf.len() * 4)
+    };
+    b
 }
 
 // TODO: Make fast
 fn flac_check(fpath: PathBuf) -> Result<Checksum, CheckError> {
     let mut reader = claxon::FlacReader::open(fpath)?;
 
-    let channels = reader.streaminfo().channels;
+    let channels = reader.streaminfo().channels as usize;
 
     let mut frame_reader = reader.blocks();
-    let mut block = claxon::Block::empty();
-    let mut buffer = vec![];
+    let mut block_buffer: Vec<i32> = Vec::with_capacity(65536);
 
-    let mut hashers: Vec<Blake2b> = Vec::with_capacity(channels as usize);
+    let mut hashers: Vec<Blake2b> = vec![Blake2b::new(); channels];
 
-    for _c in 0..channels {
-        hashers.push(Blake2b::new());
-    }
+    while let Some(block) = frame_reader.read_next_or_eof(block_buffer)? {
+        let duration = block.duration() as usize;
+        block_buffer = block.into_buffer();
 
-    loop {
-        match frame_reader.read_next_or_eof(block.into_buffer()) {
-            Ok(Some(next_block)) => block = next_block,
-            Ok(None) => break, // EOF.
-            Err(error) => return Err(CheckError::ClaxonError(error)),
-        }
+        LittleEndian::from_slice_i32(&mut block_buffer);
 
-        for c in 0..channels {
-            for s in 0..block.duration() {
-                buffer.write_i32::<LittleEndian>(block.sample(c, s))?;
-            }
-            hashers[c as usize].input(&buffer);
-            buffer.clear()
+        // This relies on block_buffer containing `channel` * `duration` samples
+        // for each channel in succession, which is claxon implementation detail,
+        // and so might be broken on claxon update.
+        // Instead it could be rewritten with block.channel() and LittleEndian making a copy,
+        // but I'm too lazy to check how much that would be slower.
+        for (hasher, chunk) in hashers.iter_mut().zip(block_buffer.chunks(duration)) {
+            hasher.input(as_u8_slice(chunk));
         }
     }
 
-    let res: Vec<_> = hashers.into_iter().map(|x| x.result()).collect();
-    let res: Vec<_> = res.iter().map(|y| y.as_slice()).collect();
-
-    // Extract slices, XOR, return
-    Ok(Checksum {
-        checksum: xor_slices(&res),
-    })
+    Ok(Checksum::new_xored(hashers.into_iter().map(|x| x.result())))
 }
 
 /*
