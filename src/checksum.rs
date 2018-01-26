@@ -9,7 +9,7 @@ use std::fmt;
 use std::io;
 use std::path::PathBuf;
 use self::blake2::{Blake2b, Digest};
-use self::byteorder::{LittleEndian, WriteBytesExt};
+use self::byteorder::{ByteOrder, LittleEndian};
 use self::magic::{Cookie, CookieFlags};
 //use self::simplemad::{Decoder, Frame};
 //use self::rayon::prelude::*;
@@ -132,35 +132,38 @@ fn xor_slices(slices: &[&[u8]]) -> Vec<u8> {
     })
 }
 
+fn as_u8_slice(buf: &[i32]) -> &[u8] {
+    let b: &[u8] = unsafe {
+        ::std::slice::from_raw_parts(buf.as_ptr() as *const u8, buf.len() * 4)
+    };
+    b
+}
+
 // TODO: Make fast
 fn flac_check(fpath: PathBuf) -> Result<Checksum, CheckError> {
     let mut reader = claxon::FlacReader::open(fpath)?;
 
-    let channels = reader.streaminfo().channels;
+    let channels = reader.streaminfo().channels as usize;
 
     let mut frame_reader = reader.blocks();
-    let mut block = claxon::Block::empty();
-    let mut buffer = vec![];
+    let mut block_buffer: Vec<i32> = Vec::with_capacity(65536);
 
-    let mut hashers: Vec<Blake2b> = Vec::with_capacity(channels as usize);
-
-    for _c in 0..channels {
-        hashers.push(Blake2b::new());
-    }
+    let mut hashers: Vec<Blake2b> = vec![Blake2b::new(); channels];
 
     loop {
-        match frame_reader.read_next_or_eof(block.into_buffer()) {
-            Ok(Some(next_block)) => block = next_block,
+        let block = match frame_reader.read_next_or_eof(block_buffer) {
+            Ok(Some(next_block)) => next_block,
             Ok(None) => break, // EOF.
             Err(error) => return Err(CheckError::ClaxonError(error)),
-        }
+        };
 
-        for c in 0..channels {
-            for s in 0..block.duration() {
-                buffer.write_i32::<LittleEndian>(block.sample(c, s))?;
-            }
-            hashers[c as usize].input(&buffer);
-            buffer.clear()
+        let duration = block.duration() as usize;
+        block_buffer = block.into_buffer();
+
+        LittleEndian::from_slice_i32(&mut block_buffer);
+
+        for (hasher, chunk) in hashers.iter_mut().zip(block_buffer.chunks(duration)) {
+            hasher.input(as_u8_slice(chunk));
         }
     }
 
