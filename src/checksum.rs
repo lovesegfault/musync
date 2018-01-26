@@ -134,15 +134,19 @@ fn get_filetype(fpath: &PathBuf) -> Result<Filetype, CheckError> {
 }
 
 fn xor_checksums<II: AsRef<[u8]>, I: IntoIterator<Item=II>>(slices: I) -> Checksum {
-    slices.into_iter().fold(Checksum::default(), |mut acc, sl| {
-        let sl = sl.as_ref();
-        debug_assert_eq!(sl.len(), acc.checksum.len());
+    let mut res = Checksum::default();
+    {
+        let acc = &mut res.checksum;
+        for sl in slices {
+            let sl = sl.as_ref();
+            debug_assert_eq!(sl.len(), acc.len());
 
-        for (a, b) in acc.checksum.iter_mut().zip(sl.iter()) {
-            *a ^= b;
+            for (a, b) in acc.iter_mut().zip(sl.iter()) {
+                *a ^= *b;
+            }
         }
-        acc
-    })
+    }
+    res
 }
 
 fn as_u8_slice(buf: &[i32]) -> &[u8] {
