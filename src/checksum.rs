@@ -133,8 +133,9 @@ fn get_filetype(fpath: &PathBuf) -> Result<Filetype, CheckError> {
     }
 }
 
-fn xor_checksums(slices: &[&[u8]]) -> Checksum {
-    slices.iter().fold(Checksum::default(), |mut acc, sl| {
+fn xor_checksums<II: AsRef<[u8]>, I: IntoIterator<Item=II>>(slices: I) -> Checksum {
+    slices.into_iter().fold(Checksum::default(), |mut acc, sl| {
+        let sl = sl.as_ref();
         debug_assert_eq!(sl.len(), acc.checksum.len());
 
         for (a, b) in acc.checksum.iter_mut().zip(sl.iter()) {
@@ -178,11 +179,10 @@ fn flac_check(fpath: PathBuf) -> Result<Checksum, CheckError> {
         }
     }
 
-    let res: Vec<_> = hashers.into_iter().map(|x| x.result()).collect();
-    let res: Vec<_> = res.iter().map(|y| y.as_slice()).collect();
+    let res = hashers.into_iter().map(|x| x.result());
 
     // Extract slices, XOR, return
-    Ok(xor_checksums(&res))
+    Ok(xor_checksums(res))
 }
 
 /*
