@@ -130,7 +130,7 @@ fn get_filetype(fpath: &PathBuf) -> Result<Filetype, CheckError> {
     }
 
     let cookie = Cookie::open(CookieFlags::default()).unwrap();
-    cookie.load(&vec!["/usr/share/file/misc/magic"])?;
+    cookie.load(&["/usr/share/file/misc/magic"])?;
     let ftype = cookie.file(fpath).unwrap();
 
     if ftype.contains("FLAC") {
@@ -163,7 +163,7 @@ fn flac_check(fpath: PathBuf) -> Result<Checksum, CheckError> {
     let channels = reader.streaminfo().channels as usize;
 
     let mut frame_reader = reader.blocks();
-    let mut block_buffer: Vec<i32> = Vec::with_capacity(65536);
+    let mut block_buffer: Vec<i32> = Vec::with_capacity(0x1_0000);
 
     let mut hashers: Vec<Blake2b> = vec![Blake2b::new(); channels];
 
@@ -190,7 +190,7 @@ fn flac_check(fpath: PathBuf) -> Result<Checksum, CheckError> {
 fn mp3_check(fpath: PathBuf) -> Result<Checksum, CheckError> {
     let mut hasher = Blake2b::new();
 
-    Ok("Foo".to_owned())
+    Ok(Checksum::default())
 }
 */
 
