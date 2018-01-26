@@ -14,6 +14,20 @@ use self::magic::{Cookie, CookieFlags};
 //use self::simplemad::{Decoder, Frame};
 //use self::rayon::prelude::*;
 
+pub struct Checksum {
+    checksum: Vec<u8>,
+}
+
+impl fmt::Display for Checksum {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut res = String::new();
+        for s in &self.checksum {
+            res += &format!("{:x}", s);
+        }
+        write!(f, "{}", res)
+    }
+}
+
 pub enum Filetype {
     WAV,
     FLAC,
@@ -107,32 +121,53 @@ fn get_filetype(fpath: &PathBuf) -> Result<Filetype, CheckError> {
     }
 }
 
-// TODO: Make fast
-fn flac_check(fpath: PathBuf) -> Result<String, CheckError> {
-    let mut hasher = Blake2b::new();
+fn xor_slices(slices: &[&[u8]]) -> Vec<u8> {
+    let res = vec![0u8; slices[0].len()];
 
+    slices.iter().fold(res, |mut acc, sl| {
+        for (a, b) in acc.iter_mut().zip(sl.iter()) {
+            *a ^= b;
+        }
+        acc
+    })
+}
+
+// TODO: Make fast
+fn flac_check(fpath: PathBuf) -> Result<Checksum, CheckError> {
     let mut reader = claxon::FlacReader::open(fpath)?;
+
+    let channels = reader.streaminfo().channels;
+
     let mut frame_reader = reader.blocks();
     let mut block = claxon::Block::empty();
     let mut buffer = vec![];
 
+    let mut hashers: Vec<Blake2b> = Vec::with_capacity(channels as usize);
+
     loop {
         match frame_reader.read_next_or_eof(block.into_buffer()) {
             Ok(Some(next_block)) => block = next_block,
-            Ok(None) => break,                 // EOF.
-            Err(error) => panic!("{}", error), // TODO: Handle this properly somehow
+            Ok(None) => break, // EOF.
+            Err(error) => return Err(CheckError::ClaxonError(error)),
         }
-        for s in 0..block.len() {
-            for ch in 0..block.channels() {
-                println!("---- sample(ch: {}, s:{}) = {}", ch, s, block.sample(ch, s));
-                buffer.write_i32::<LittleEndian>(block.sample(ch, s))?;
+
+        for c in 0..channels {
+            for s in 0..block.duration() {
+                buffer.write_i32::<LittleEndian>(block.sample(c, s))?;
             }
+            hashers[c as usize].input(&buffer);
+            buffer.clear()
         }
-        hasher.input(&buffer);
-        buffer.clear();
     }
 
-    Ok(format!("{:x}", hasher.result()))
+    let _res: Vec<_> = hashers.into_iter().map(|x| x.result()).collect();
+    let _res: Vec<_> = _res.iter().map(|y| y.as_slice()).collect();
+    let foo = xor_slices(_res);
+
+    // Extract slices, XOR, return
+    Ok(Checksum {
+        checksum: vec![1, 2, 3],
+    })
 }
 
 /*
@@ -143,7 +178,7 @@ fn mp3_check(fpath: PathBuf) -> Result<String, CheckError> {
 }
 */
 
-pub fn check_file(fpath: PathBuf) -> Result<String, CheckError> {
+pub fn check_file(fpath: PathBuf) -> Result<Checksum, CheckError> {
     let ftype = get_filetype(&fpath)?;
     match ftype {
         Filetype::FLAC => Ok(flac_check(fpath)?),
