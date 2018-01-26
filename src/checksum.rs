@@ -20,10 +20,12 @@ pub struct Checksum {
 
 impl Checksum {
     fn new() -> Checksum {
-        Checksum { checksum: [0u8; 64] }
+        Checksum {
+            checksum: [0u8; 64],
+        }
     }
 
-    fn new_xored<II: AsRef<[u8]>, I: IntoIterator<Item=II>>(slices: I) -> Self {
+    fn new_xored<II: AsRef<[u8]>, I: IntoIterator<Item = II>>(slices: I) -> Self {
         let mut res = Checksum::default();
         {
             let acc = &mut res.checksum;
@@ -150,13 +152,11 @@ fn get_filetype(fpath: &PathBuf) -> Result<Filetype, CheckError> {
 }
 
 fn as_u8_slice(buf: &[i32]) -> &[u8] {
-    let b: &[u8] = unsafe {
-        ::std::slice::from_raw_parts(buf.as_ptr() as *const u8, buf.len() * 4)
-    };
+    let b: &[u8] =
+        unsafe { ::std::slice::from_raw_parts(buf.as_ptr() as *const u8, buf.len() * 4) };
     b
 }
 
-// TODO: Make fast
 fn flac_check(fpath: PathBuf) -> Result<Checksum, CheckError> {
     let mut reader = claxon::FlacReader::open(fpath)?;
 
@@ -187,7 +187,7 @@ fn flac_check(fpath: PathBuf) -> Result<Checksum, CheckError> {
 }
 
 /*
-fn mp3_check(fpath: PathBuf) -> Result<String, CheckError> {
+fn mp3_check(fpath: PathBuf) -> Result<Checksum, CheckError> {
     let mut hasher = Blake2b::new();
 
     Ok("Foo".to_owned())
