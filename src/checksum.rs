@@ -186,14 +186,6 @@ fn flac_check(fpath: PathBuf) -> Result<Checksum, CheckError> {
     Ok(Checksum::new_xored(hashers.into_iter().map(|x| x.result())))
 }
 
-/*
-fn mp3_check(fpath: PathBuf) -> Result<Checksum, CheckError> {
-    let mut hasher = Blake2b::new();
-
-    Ok(Checksum::default())
-}
-*/
-
 pub fn check_file(fpath: PathBuf) -> Result<Checksum, CheckError> {
     let ftype = get_filetype(&fpath)?;
     match ftype {
