@@ -144,6 +144,10 @@ fn flac_check(fpath: PathBuf) -> Result<Checksum, CheckError> {
 
     let mut hashers: Vec<Blake2b> = Vec::with_capacity(channels as usize);
 
+    for _c in 0..channels {
+        hashers.push(Blake2b::new());
+    }
+
     loop {
         match frame_reader.read_next_or_eof(block.into_buffer()) {
             Ok(Some(next_block)) => block = next_block,
@@ -160,13 +164,12 @@ fn flac_check(fpath: PathBuf) -> Result<Checksum, CheckError> {
         }
     }
 
-    let _res: Vec<_> = hashers.into_iter().map(|x| x.result()).collect();
-    let _res: Vec<_> = _res.iter().map(|y| y.as_slice()).collect();
-    let foo = xor_slices(_res);
+    let res: Vec<_> = hashers.into_iter().map(|x| x.result()).collect();
+    let res: Vec<_> = res.iter().map(|y| y.as_slice()).collect();
 
     // Extract slices, XOR, return
     Ok(Checksum {
-        checksum: vec![1, 2, 3],
+        checksum: xor_slices(&res),
     })
 }
 
