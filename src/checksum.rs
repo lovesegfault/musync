@@ -163,10 +163,9 @@ fn flac_check(fpath: PathBuf) -> Result<Checksum, CheckError> {
     let mut hashers: Vec<Blake2b> = vec![Blake2b::new(); channels];
 
     loop {
-        let block = match frame_reader.read_next_or_eof(block_buffer) {
-            Ok(Some(next_block)) => next_block,
-            Ok(None) => break, // EOF.
-            Err(error) => return Err(CheckError::ClaxonError(error)),
+        let block = match frame_reader.read_next_or_eof(block_buffer)? {
+            Some(next_block) => next_block,
+            None => break, // EOF.
         };
 
         let duration = block.duration() as usize;
