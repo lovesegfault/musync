@@ -1,14 +1,7 @@
-extern crate blake2;
-extern crate byteorder;
-extern crate claxon;
-extern crate magic;
-extern crate smallvec;
-//extern crate rayon;
-extern crate simplemad;
-
 use std::fmt;
 use std::io;
 use std::path::PathBuf;
+use std::fmt::Display;
 use self::blake2::{Blake2b, Digest};
 use self::byteorder::{ByteOrder, LittleEndian};
 use self::magic::{Cookie, CookieFlags};
@@ -44,9 +37,39 @@ impl Checksum {
     }
 }
 
+impl PartialEq for Checksum {
+    fn eq(&self, other: &Checksum) -> bool {
+        self.checksum.iter().eq(other.checksum.iter())
+    }
+}
+
+impl<'a> From<&'a String> for Checksum {
+    fn from(s: &String) -> Self {
+        let mut hash = [0; 64];
+        hash.copy_from_slice(s.as_bytes());
+
+        Checksum { checksum: hash }
+    }
+}
+
+impl From<String> for Checksum {
+    fn from(s: String) -> Self {
+        let mut hash = [0; 64];
+        hash.copy_from_slice(s.as_bytes());
+
+        Checksum { checksum: hash }
+    }
+}
+
 impl Default for Checksum {
     fn default() -> Checksum {
         Checksum::new()
+    }
+}
+
+impl fmt::Debug for Checksum {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Display::fmt(self, f)
     }
 }
 
@@ -98,6 +121,12 @@ impl fmt::Display for CheckError {
             CheckError::FiletypeError(ref e) => write!(f, "Filetype error: {}", e),
             CheckError::IOError(ref e) => write!(f, "{}", e),
         }
+    }
+}
+
+impl fmt::Debug for CheckError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Display::fmt(self, f)
     }
 }
 
@@ -198,10 +227,38 @@ pub fn check_file(fpath: PathBuf) -> Result<Checksum, CheckError> {
     }
 }
 
-#[cfg(tests)]
+#[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
+    use std::fs::File;
+    use std::io::Read;
+
+    type Config = HashMap<String, String>;
+
+    fn get_config(ftype: Filetype) -> Config {
+        let cfg_path = PathBuf::from("./data/hashes.toml");
+        let mut input = String::new();
+        File::open(cfg_path)
+            .and_then(|mut f| f.read_to_string(&mut input))
+            .unwrap();
+        let mut cfg: HashMap<String, Config> = toml::from_str(&input).unwrap();
+        match ftype {
+            Filetype::FLAC => return cfg.remove("flac").unwrap(),
+            Filetype::MP3 => return cfg.remove("mp3").unwrap(),
+            Filetype::Opus => return cfg.remove("opus").unwrap(),
+            Filetype::Vorbis => return cfg.remove("vorbis").unwrap(),
+            Filetype::WAV => return cfg.remove("wav").unwrap(),
+        }
+    }
 
     #[test]
-    fn test_flac_check() {}
+    fn test_flac_check() {
+        let cfg = get_config(Filetype::FLAC);
+        for pair in cfg.iter() {
+            let fpath = PathBuf::from(pair.0);
+            println!("Testing {}", pair.0);
+            assert_eq!(flac_check(fpath).unwrap(), Checksum::from(pair.1));
+        }
+    }
 }

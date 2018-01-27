@@ -2,26 +2,33 @@
 name = "musync"
 version = "0.1.0"
 authors = ["Bernardo Meurer <meurerbernardo@gmail.com>"]
+description = "A fast music syncing CLI"
+keywords = ["music", "audio", "sync", "flac", "mp3"]
+categories = ["multimedia::encoding", "multimedia::audio"]
+
 
 [dependencies]
 # Audio decoders
-magic = "0.12"
-claxon = "0.4"
-simplemad = "0.8"
+magic = "0.12"      # File Identification
+claxon = "0.4"      # Flac Decoder
+simplemad = "0.8"   # MPEG decoder
 # Testing
+toml = "0.4"
+serde_derive = "1.0"
 tempdir = "0.3"
 tempfile = "2.2"
+time="*"            # Benchmarking
 # Checksums
-blake2 = "0.7"
-byteorder = "1"
-smallvec = "0.6"
-rayon = "0.9"
+blake2 = "0.7"      # Hasher (safe)
+twox-hash = "1.1"   # Hasher (fast)
+byteorder = "1"     # Endiannes Correction
+smallvec = "0.6"    # Stack-vectors
+rayon = "0.9"       # Parallelism
 # Database
-sled="0.14"
+sled="0.14"         # Database
 # Misc
 filetime = "0.1"
-clap = "2"
-time="*"
+clap = "2"          # Argument parser
 
 
 [profile.release]
