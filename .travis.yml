@@ -11,4 +11,5 @@ before_install:
     - sudo apt-get -qq update
     - sudo apt-get install -y libmagic-dev
 script:
-    - cargo build --verbose --all
+    - cargo build --release --verbose --all
+    - cargo test --release --verbose --all

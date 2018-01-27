@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 extern crate blake2;
 extern crate byteorder;
 extern crate claxon;
@@ -7,7 +8,6 @@ extern crate serde_derive;
 extern crate simplemad;
 extern crate smallvec;
 extern crate time;
-extern crate toml;
 
 mod checksum;
 
@@ -21,12 +21,12 @@ pub fn check_songs() {
 
     for song in songs {
         let start = time::PreciseTime::now();
-        let check = match checksum::check_file(song) {
+        let check = match checksum::check_file(&song) {
             Err(why) => panic!("{}", why),
             Ok(check) => check,
         };
         let end = time::PreciseTime::now();
         println!("{}", check);
-        println!("Took: {:?}", start.to(end));
+        println!("---- {:?} took: {:?}", song, start.to(end));
     }
 }

@@ -16,10 +16,8 @@ pub struct Checksum {
 }
 
 impl Checksum {
-    fn new() -> Checksum {
-        Checksum {
-            checksum: [0u8; 64],
-        }
+    fn new(a: [u8; 64]) -> Checksum {
+        Checksum { checksum: a }
     }
 
     fn new_xored<II: AsRef<[u8]>, I: IntoIterator<Item = II>>(slices: I) -> Self {
@@ -39,33 +37,15 @@ impl Checksum {
     }
 }
 
+impl Default for Checksum {
+    fn default() -> Self {
+        Checksum::new([0u8; 64])
+    }
+}
+
 impl PartialEq for Checksum {
     fn eq(&self, other: &Checksum) -> bool {
         self.checksum.iter().eq(other.checksum.iter())
-    }
-}
-
-impl<'a> From<&'a String> for Checksum {
-    fn from(s: &String) -> Self {
-        let mut hash = [0; 64];
-        hash.copy_from_slice(s.as_bytes());
-
-        Checksum { checksum: hash }
-    }
-}
-
-impl From<String> for Checksum {
-    fn from(s: String) -> Self {
-        let mut hash = [0; 64];
-        hash.copy_from_slice(s.as_bytes());
-
-        Checksum { checksum: hash }
-    }
-}
-
-impl Default for Checksum {
-    fn default() -> Checksum {
-        Checksum::new()
     }
 }
 
@@ -79,7 +59,7 @@ impl fmt::Display for Checksum {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut res = String::new();
         for s in self.checksum.iter() {
-            res += &format!("{:x}", s);
+            res += &format!("{:02x}", s);
         }
         write!(f, "{}", res)
     }
@@ -190,7 +170,7 @@ fn as_u8_slice(buf: &[i32]) -> &[u8] {
     b
 }
 
-fn flac_check(fpath: PathBuf) -> Result<Checksum, CheckError> {
+fn flac_check(fpath: &PathBuf) -> Result<Checksum, CheckError> {
     let mut reader = claxon::FlacReader::open(fpath)?;
 
     let channels = reader.streaminfo().channels as usize;
@@ -220,8 +200,8 @@ fn flac_check(fpath: PathBuf) -> Result<Checksum, CheckError> {
     Ok(Checksum::new_xored(hashers.into_iter().map(|x| x.result())))
 }
 
-pub fn check_file(fpath: PathBuf) -> Result<Checksum, CheckError> {
-    let ftype = get_filetype(&fpath)?;
+pub fn check_file(fpath: &PathBuf) -> Result<Checksum, CheckError> {
+    let ftype = get_filetype(fpath)?;
     match ftype {
         Filetype::FLAC => Ok(flac_check(fpath)?),
         Filetype::MP3 => unimplemented!(),
@@ -231,9 +211,12 @@ pub fn check_file(fpath: PathBuf) -> Result<Checksum, CheckError> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    extern crate hex;
+    extern crate toml;
 
-    use super::super::toml;
+    use super::*;
+    use self::hex::FromHex;
+
     use std::collections::HashMap;
     use std::fs::File;
     use std::io::Read;
@@ -256,6 +239,13 @@ mod tests {
         }
     }
 
+    impl<'a> From<&'a String> for Checksum {
+        fn from(s: &String) -> Self {
+            let arr: [u8; 64] = FromHex::from_hex(s).unwrap();
+            Checksum::new(arr)
+        }
+    }
+
     #[test]
     fn test_flac_check() {
         let cfg = get_config(Filetype::FLAC);
@@ -265,7 +255,9 @@ mod tests {
                 .with_extension("flac");
 
             println!("Testing {:?}", fpath);
-            assert_eq!(flac_check(fpath).unwrap(), Checksum::from(pair.1));
+            let check = flac_check(&fpath).unwrap();
+            println!("---- check={}", check);
+            assert_eq!(check, Checksum::from(pair.1));
         }
     }
 }
