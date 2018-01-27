@@ -2,13 +2,15 @@ use std::fmt;
 use std::io;
 use std::path::PathBuf;
 use std::fmt::Display;
+use std::fs::File;
 
 use super::blake2::{Blake2b, Digest};
 use super::byteorder::{ByteOrder, LittleEndian};
 use super::magic::{Cookie, CookieFlags, MagicError};
 use super::smallvec::SmallVec;
+use super::simplemad::{Decoder, Frame, SimplemadError};
 use super::claxon;
-//use self::simplemad::{Decoder, Frame};
+
 //use self::rayon::prelude::*;
 
 pub struct Checksum {
@@ -92,6 +94,7 @@ pub enum CheckError {
     ClaxonError(claxon::Error),
     FiletypeError(String),
     IOError(io::Error),
+    SimplemadError(SimplemadError),
 }
 
 impl fmt::Display for CheckError {
@@ -101,7 +104,8 @@ impl fmt::Display for CheckError {
             CheckError::MagicError(ref e) => write!(f, "Magic error: {}", e),
             CheckError::ClaxonError(ref e) => write!(f, "Claxon error: {}", e),
             CheckError::FiletypeError(ref e) => write!(f, "Filetype error: {}", e),
-            CheckError::IOError(ref e) => write!(f, "{}", e),
+            CheckError::IOError(ref e) => write!(f, "IO error: {}", e),
+            CheckError::SimplemadError(ref e) => write!(f, "Simplemad error: {:?}", e),
         }
     }
 }
@@ -109,6 +113,12 @@ impl fmt::Display for CheckError {
 impl fmt::Debug for CheckError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Display::fmt(self, f)
+    }
+}
+
+impl From<SimplemadError> for CheckError {
+    fn from(err: SimplemadError) -> Self {
+        CheckError::SimplemadError(err)
     }
 }
 
@@ -202,11 +212,21 @@ fn flac_check(fpath: &PathBuf) -> Result<Checksum, CheckError> {
     Ok(Checksum::new_xored(hashers.into_iter().map(|x| x.result())))
 }
 
+fn mp3_check(fpath: &PathBuf) -> Result<Checksum, CheckError> {
+    let f = File::open(fpath)?;
+    let decoder = Decoder::decode(f)?;
+    // Get channels
+    // Allocate hashers (SmallVec)
+    // Iterate over frames
+    // Copy flac_check() logic for speed
+    //let channels = decoder.
+}
+
 pub fn check_file(fpath: &PathBuf) -> Result<Checksum, CheckError> {
     let ftype = get_filetype(fpath)?;
     match ftype {
         Filetype::FLAC => Ok(flac_check(fpath)?),
-        Filetype::MP3 => unimplemented!(),
+        Filetype::MP3 => Ok(mp3_check(fpath)?),
         _ => unimplemented!(),
     }
 }
