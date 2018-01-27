@@ -2,10 +2,12 @@ use std::fmt;
 use std::io;
 use std::path::PathBuf;
 use std::fmt::Display;
-use self::blake2::{Blake2b, Digest};
-use self::byteorder::{ByteOrder, LittleEndian};
-use self::magic::{Cookie, CookieFlags};
-use self::smallvec::SmallVec;
+
+use super::blake2::{Blake2b, Digest};
+use super::byteorder::{ByteOrder, LittleEndian};
+use super::magic::{Cookie, CookieFlags, MagicError};
+use super::smallvec::SmallVec;
+use super::claxon;
 //use self::simplemad::{Decoder, Frame};
 //use self::rayon::prelude::*;
 
@@ -106,7 +108,7 @@ impl fmt::Display for Filetype {
 
 pub enum CheckError {
     FError(String),
-    MagicError(magic::MagicError),
+    MagicError(MagicError),
     ClaxonError(claxon::Error),
     FiletypeError(String),
     IOError(io::Error),
@@ -148,8 +150,8 @@ impl From<String> for CheckError {
     }
 }
 
-impl From<magic::MagicError> for CheckError {
-    fn from(err: magic::MagicError) -> Self {
+impl From<MagicError> for CheckError {
+    fn from(err: MagicError) -> Self {
         CheckError::MagicError(err)
     }
 }
@@ -230,6 +232,8 @@ pub fn check_file(fpath: PathBuf) -> Result<Checksum, CheckError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use super::super::toml;
     use std::collections::HashMap;
     use std::fs::File;
     use std::io::Read;
@@ -256,8 +260,11 @@ mod tests {
     fn test_flac_check() {
         let cfg = get_config(Filetype::FLAC);
         for pair in cfg.iter() {
-            let fpath = PathBuf::from(pair.0);
-            println!("Testing {}", pair.0);
+            let fpath = PathBuf::from("./data/test.flac")
+                .with_file_name(pair.0)
+                .with_extension("flac");
+
+            println!("Testing {:?}", fpath);
             assert_eq!(flac_check(fpath).unwrap(), Checksum::from(pair.1));
         }
     }
