@@ -178,7 +178,9 @@ fn flac_check(fpath: &PathBuf) -> Result<Checksum, CheckError> {
     let mut frame_reader = reader.blocks();
     let mut block_buffer: Vec<i32> = Vec::with_capacity(0x1_0000);
 
-    //let mut hashers: Vec<Blake2b> = vec![Blake2b::new(); channels];
+    // We use a SmallVec to allocate our hashers (up to 8, because if the audio
+    // file has more than 8 channels then God save us) on the stack for faster
+    // access. Excess hashers will spill over to heap causing slowdown.
     let mut hashers = SmallVec::<[Blake2b; 8]>::from(vec![Blake2b::new(); channels]);
 
     while let Some(block) = frame_reader.read_next_or_eof(block_buffer)? {
