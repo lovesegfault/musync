@@ -23,7 +23,7 @@ impl Checksum {
         Checksum { checksum: a }
     }
 
-    fn new_xor<II: AsRef<[u8]>, I: IntoIterator<Item=II>>(slices: I) -> Self {
+    fn new_xor<II: AsRef<[u8]>, I: IntoIterator<Item = II>>(slices: I) -> Self {
         let mut res = Checksum::default();
         {
             let acc = &mut res.checksum;
@@ -68,6 +68,7 @@ impl fmt::Display for Checksum {
     }
 }
 
+#[derive(PartialEq)]
 pub enum Filetype {
     WAV,
     FLAC,
@@ -76,16 +77,29 @@ pub enum Filetype {
     Opus,
 }
 
+impl fmt::Debug for Filetype {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let filetype = match *self {
+            Filetype::WAV => "wav",
+            Filetype::FLAC => "flac",
+            Filetype::MP3 => "mp3",
+            Filetype::Vorbis => "ogg",
+            Filetype::Opus => "opus",
+        };
+        write!(f, "{}", filetype)
+    }
+}
+
 impl fmt::Display for Filetype {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let ftype = match *self {
+        let filetype = match *self {
             Filetype::WAV => "Wave",
             Filetype::FLAC => "FLAC",
             Filetype::MP3 => "MP3",
             Filetype::Vorbis => "Vorbis",
             Filetype::Opus => "Opus",
         };
-        write!(f, "{}", ftype)
+        write!(f, "{}", filetype)
     }
 }
 
@@ -147,27 +161,19 @@ impl From<MagicError> for CheckError {
     }
 }
 
-fn find_magic() -> Result<PathBuf, CheckError> {
-    let possible_paths = ["/usr/share/file/misc/magic",
-        "/usr/share/misc/magic",
-        "/usr/share/misc/magic"]
-        .into_iter().map(|x| PathBuf::from(x)).collect::<Vec<PathBuf>>();
-    for path in possible_paths {
-        if path.exists() {
-            return Ok(path);
-        }
+fn find_magic(cookie: &Cookie) -> Result<(), CheckError> {
+    match cookie.load(&["/usr/share/file/misc/magic"]) {
+        Ok(_) => return Ok(()),
+        Err(_) => Err(CheckError::FError("Failed to locate libmagic\n".to_owned())),
     }
-    Err(CheckError::FError("Couldn't locate libmagic".to_owned()))
 }
 
-fn get_filetype(file_path: &PathBuf, magic_path: &PathBuf) -> Result<Filetype, CheckError> {
+fn get_filetype(file_path: &PathBuf, cookie: &Cookie) -> Result<Filetype, CheckError> {
     if !file_path.exists() {
         let msg = format!("File '{:?}' failed to open.", file_path);
         return Err(CheckError::FError(msg));
     }
 
-    let cookie = Cookie::open(CookieFlags::default()).unwrap();
-    cookie.load(&[magic_path])?;
     let file_type = cookie.file(file_path).unwrap();
 
     if file_type.contains("FLAC") {
@@ -190,7 +196,10 @@ fn get_filetype(file_path: &PathBuf, magic_path: &PathBuf) -> Result<Filetype, C
 
 #[inline]
 unsafe fn as_u8_slice<T: Copy>(buf: &[T]) -> &[u8] {
-    ::std::slice::from_raw_parts(buf.as_ptr() as *const u8, buf.len() * ::std::mem::size_of::<T>())
+    ::std::slice::from_raw_parts(
+        buf.as_ptr() as *const u8,
+        buf.len() * ::std::mem::size_of::<T>(),
+    )
 }
 
 #[inline]
@@ -201,7 +210,10 @@ fn i32_as_u8_slice(buf: &[i32]) -> &[u8] {
 #[inline]
 unsafe fn as_i32_slice<T: Copy>(buf: &mut [T]) -> &mut [i32] {
     debug_assert_eq!(::std::mem::size_of::<T>() % 4, 0);
-    ::std::slice::from_raw_parts_mut(buf.as_ptr() as *mut i32, buf.len() * (::std::mem::size_of::<T>() / 4))
+    ::std::slice::from_raw_parts_mut(
+        buf.as_ptr() as *mut i32,
+        buf.len() * (::std::mem::size_of::<T>() / 4),
+    )
 }
 
 #[inline]
@@ -220,7 +232,8 @@ fn flac_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
     // We use a SmallVec to allocate our hashers (up to 8, because if the audio
     // file has more than 8 channels then God save us) on the stack for faster
     // access. Excess hashers will spill over to heap causing slowdown.
-    let mut hashers: SmallVec<[Blake2b; 8]> = ::std::iter::repeat(Blake2b::new()).take(channels).collect();
+    let mut hashers: SmallVec<[Blake2b; 8]> =
+        ::std::iter::repeat(Blake2b::new()).take(channels).collect();
 
     while let Some(block) = frame_reader.read_next_or_eof(block_buffer)? {
         let duration = block.duration() as usize;
@@ -255,19 +268,27 @@ fn mp3_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
             MadMode::SingleChannel => 1,
             _ => 2,
         };
-        for (ch, hasher) in frame.samples.iter_mut().take(channels).zip(hashers.iter_mut()) {
+        for (ch, hasher) in frame
+            .samples
+            .iter_mut()
+            .take(channels)
+            .zip(hashers.iter_mut())
+        {
             let frame_buffer = madfixed_as_i32_slice(ch);
             LittleEndian::from_slice_i32(frame_buffer);
             hasher.input(i32_as_u8_slice(frame_buffer));
         }
     }
 
-    Ok(Checksum::new_xor(hashers.into_iter().take(channels).map(|x| x.result())))
+    Ok(Checksum::new_xor(
+        hashers.into_iter().take(channels).map(|x| x.result()),
+    ))
 }
 
 pub fn hash_audio(file_path: &PathBuf) -> Result<Checksum, CheckError> {
-    let magic_path = find_magic()?;
-    let file_type = get_filetype(file_path, &magic_path)?;
+    let cookie = Cookie::open(CookieFlags::default()).unwrap();
+    find_magic(&cookie)?;
+    let file_type = get_filetype(file_path, &cookie)?;
     match file_type {
         Filetype::FLAC => Ok(flac_hash(file_path)?),
         Filetype::MP3 => Ok(mp3_hash(file_path)?),
@@ -289,20 +310,26 @@ mod tests {
 
     type Config = HashMap<String, String>;
 
-    fn get_config(file_type: Filetype) -> Config {
+    fn get_config(file_type: &Filetype) -> Config {
         let cfg_path = PathBuf::from("./data/hashes.toml");
         let mut input = String::new();
         File::open(cfg_path)
             .and_then(|mut f| f.read_to_string(&mut input))
             .unwrap();
         let mut cfg: HashMap<String, Config> = toml::from_str(&input).unwrap();
-        match file_type {
+        match *file_type {
             Filetype::FLAC => return cfg.remove("flac").unwrap(),
             Filetype::MP3 => return cfg.remove("mp3").unwrap(),
             Filetype::Opus => return cfg.remove("opus").unwrap(),
             Filetype::Vorbis => return cfg.remove("vorbis").unwrap(),
             Filetype::WAV => return cfg.remove("wav").unwrap(),
         }
+    }
+
+    fn make_path(filename: String, extension: &Filetype) -> PathBuf {
+        PathBuf::from("./data/test.flac")
+            .with_file_name(filename)
+            .with_extension(format!("{:?}", extension))
     }
 
     impl<'a> From<&'a String> for Checksum {
@@ -312,13 +339,36 @@ mod tests {
         }
     }
 
+    impl Filetype {
+        fn iterator() -> Vec<Filetype> {
+            vec![
+                Filetype::FLAC,
+                Filetype::MP3,
+                // Filetype::Vorbis,
+                // Filetype::Opus,
+                // Filetype::WAV,
+            ]
+        }
+    }
+
+    #[test]
+    fn test_magic() {
+        let cookie = Cookie::open(CookieFlags::default()).unwrap();
+        find_magic(&cookie).unwrap();
+        for format in &Filetype::iterator() {
+            let cfg = get_config(&format).into_iter();
+            for pair in cfg {
+                let file_path = make_path(pair.0, format);
+                assert_eq!(get_filetype(&file_path, &cookie).unwrap(), *format);
+            }
+        }
+    }
+
     #[test]
     fn test_flac_hash() {
-        let cfg = get_config(Filetype::FLAC);
+        let cfg = get_config(&Filetype::FLAC);
         for pair in cfg.into_iter() {
-            let file_path = PathBuf::from("./data/test.flac")
-                .with_file_name(pair.0)
-                .with_extension("flac");
+            let file_path = make_path(pair.0, &Filetype::FLAC);
             let check = flac_hash(&file_path).unwrap();
             assert_eq!(check, Checksum::from(&pair.1));
         }
@@ -326,11 +376,9 @@ mod tests {
 
     #[test]
     fn test_mp3_hash() {
-        let cfg = get_config(Filetype::MP3);
+        let cfg = get_config(&Filetype::MP3);
         for pair in cfg.into_iter() {
-            let file_path = PathBuf::from("./data/test.mp3")
-                .with_file_name(pair.0)
-                .with_extension("mp3");
+            let file_path = make_path(pair.0, &Filetype::MP3);
             let check = mp3_hash(&file_path).unwrap();
             assert_eq!(check, Checksum::from(&pair.1));
         }
