@@ -175,19 +175,23 @@ fn get_filetype(fpath: &PathBuf) -> Result<Filetype, CheckError> {
     }
 }
 
+#[inline]
 unsafe fn as_u8_slice<T: Copy>(buf: &[T]) -> &[u8] {
     ::std::slice::from_raw_parts(buf.as_ptr() as *const u8, buf.len() * ::std::mem::size_of::<T>())
 }
 
+#[inline]
 fn i32_as_u8_slice(buf: &[i32]) -> &[u8] {
     unsafe { as_u8_slice(buf) }
 }
 
+#[inline]
 unsafe fn as_i32_slice<T: Copy>(buf: &mut [T]) -> &mut [i32] {
     debug_assert_eq!(::std::mem::size_of::<T>() % 4, 0);
     ::std::slice::from_raw_parts_mut(buf.as_ptr() as *mut i32, buf.len() * (::std::mem::size_of::<T>() / 4))
 }
 
+#[inline]
 fn madfixed_as_i32_slice(buf: &mut [::simplemad::MadFixed32]) -> &mut [i32] {
     unsafe { as_i32_slice(buf) }
 }
