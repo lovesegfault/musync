@@ -147,30 +147,43 @@ impl From<MagicError> for CheckError {
     }
 }
 
-fn get_filetype(fpath: &PathBuf) -> Result<Filetype, CheckError> {
-    if !fpath.exists() {
-        let msg = format!("File '{:?}' failed to open.", fpath);
+fn find_magic() -> Result<PathBuf, CheckError> {
+    let possible_paths = ["/usr/share/file/misc/magic",
+        "/usr/share/misc/magic",
+        "/usr/share/misc/magic"]
+        .into_iter().map(|x| PathBuf::from(x)).collect::<Vec<PathBuf>>();
+    for path in possible_paths {
+        if path.exists() {
+            return Ok(path);
+        }
+    }
+    Err(CheckError::FError("Couldn't locate libmagic".to_owned()))
+}
+
+fn get_filetype(file_path: &PathBuf, magic_path: &PathBuf) -> Result<Filetype, CheckError> {
+    if !file_path.exists() {
+        let msg = format!("File '{:?}' failed to open.", file_path);
         return Err(CheckError::FError(msg));
     }
 
     let cookie = Cookie::open(CookieFlags::default()).unwrap();
-    cookie.load(&["/usr/share/file/misc/magic"])?;
-    let ftype = cookie.file(fpath).unwrap();
+    cookie.load(&[magic_path])?;
+    let file_type = cookie.file(file_path).unwrap();
 
-    if ftype.contains("FLAC") {
+    if file_type.contains("FLAC") {
         Ok(Filetype::FLAC)
-    } else if ftype.contains("MPEG") && ftype.contains("III") {
+    } else if file_type.contains("MPEG") && file_type.contains("III") {
         Ok(Filetype::MP3)
-    } else if ftype.contains("Vorbis") {
+    } else if file_type.contains("Vorbis") {
         Ok(Filetype::Vorbis)
-    } else if ftype.contains("Opus") {
+    } else if file_type.contains("Opus") {
         Ok(Filetype::Opus)
-    } else if ftype.contains("WAVE") {
+    } else if file_type.contains("WAVE") {
         Ok(Filetype::WAV)
     } else {
         Err(CheckError::FiletypeError(format!(
             "Invalid filetype '{:?}'.",
-            fpath.extension()
+            file_path.extension()
         )))
     }
 }
@@ -253,7 +266,8 @@ fn mp3_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
 }
 
 pub fn hash_audio(file_path: &PathBuf) -> Result<Checksum, CheckError> {
-    let file_type = get_filetype(file_path)?;
+    let magic_path = find_magic()?;
+    let file_type = get_filetype(file_path, &magic_path)?;
     match file_type {
         Filetype::FLAC => Ok(flac_hash(file_path)?),
         Filetype::MP3 => Ok(mp3_hash(file_path)?),
