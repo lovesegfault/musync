@@ -175,14 +175,12 @@ fn get_filetype(fpath: &PathBuf) -> Result<Filetype, CheckError> {
     }
 }
 
-fn as_u8_slice<T: Copy>(buf: &[T]) -> &[u8] {
-    let b: &[u8] = unsafe {
-        ::std::slice::from_raw_parts(
-            buf.as_ptr() as *const u8,
-            buf.len() * ::std::mem::size_of::<T>(),
-        )
-    };
-    b
+unsafe fn as_u8_slice<T: Copy>(buf: &[T]) -> &[u8] {
+    ::std::slice::from_raw_parts(buf.as_ptr() as *const u8, buf.len() * ::std::mem::size_of::<T>())
+}
+
+fn i32_as_u8_slice(buf: &[i32]) -> &[u8] {
+    unsafe { as_u8_slice(buf) }
 }
 
 fn flac_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
@@ -210,7 +208,7 @@ fn flac_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
         // Instead it could be rewritten with block.channel() and LittleEndian making a copy,
         // but I'm too lazy to check how much that would be slower.
         for (hasher, chunk) in hashers.iter_mut().zip(block_buffer.chunks(duration)) {
-            hasher.input(as_u8_slice(chunk));
+            hasher.input(i32_as_u8_slice(chunk));
         }
     }
 
@@ -255,7 +253,7 @@ fn mp3_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
         // the samples after we cast them to i32
         frame_buffer = initial.samples[ch].iter().map(|x| x.to_i32()).collect::<Vec<i32>>();
         LittleEndian::from_slice_i32(&mut frame_buffer);
-        hashers[ch].input(as_u8_slice(&frame_buffer));
+        hashers[ch].input(i32_as_u8_slice(&frame_buffer));
     }
 
     for result in decoder {
@@ -266,7 +264,7 @@ fn mp3_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
         for ch in 0..channels {
             frame_buffer = frame.samples[ch].iter().map(|x| x.to_i32()).collect::<Vec<i32>>();
             LittleEndian::from_slice_i32(&mut frame_buffer);
-            hashers[ch].input(as_u8_slice(&frame_buffer));
+            hashers[ch].input(i32_as_u8_slice(&frame_buffer));
         }
     }
 
