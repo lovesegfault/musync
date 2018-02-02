@@ -13,25 +13,26 @@ magic = "0.12"      # File Identification
 claxon = "0.4"      # Flac Decoder
 simplemad = "0.8"   # MPEG decoder
 simplemad_sys = "0.5"
+lewton = "0.7"
 # Checksums
 serde_derive = "1.0"
 time="*"            # Benchmarking
 blake2 = "0.7"      # Hasher (safe)
-twox-hash = "1.1"   # Hasher (fast)
+#twox-hash = "1.1"   # Hasher (fast)
 byteorder = "1"     # Endiannes Correction
 smallvec = "0.6"    # Stack-vectors
-rayon = "0.9"       # Parallelism
+#rayon = "0.9"       # Parallelism
 # Database
 sled="0.14"         # Database
 # Misc
-filetime = "0.1"
-clap = "2"          # Argument parser
+#filetime = "0.1"
+#clap = "2"          # Argument parser
 
 [dev-dependencies]
 hex = "0.3"
 toml = "0.4"
-tempdir = "0.3"
-tempfile = "2.2"
+#tempdir = "0.3"
+#tempfile = "2.2"
 
 [profile.release]
 opt-level = 3
