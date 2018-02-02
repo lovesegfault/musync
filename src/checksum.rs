@@ -236,7 +236,8 @@ fn mp3_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
     }
 
     // Initial setup
-    // We do it this way because Decoder does not provide the necessary information about the file for hasher allocation et al
+    // We do it this way because Decoder does not provide the necessary information about the file
+    // for hasher allocation et al
     let channels = match initial.mode {
         MadMode::SingleChannel => 1,
         _ => 2,
@@ -245,31 +246,38 @@ fn mp3_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
     // We use a SmallVec to allocate our hashers (at most 2 because that's the
     // limit of the MP3 format) on the stack for faster access. Excess hashers
     // will spill over to heap causing slowdown.
-    let mut _hashers = SmallVec::<[Blake2b; 2]>::from(vec![Blake2b::new(); channels]);
+    let mut hashers = SmallVec::<[Blake2b; 2]>::from(vec![Blake2b::new(); channels]);
+    let mut frame_buffer: Vec<i32> = Vec::with_capacity(2000);
 
-    let sample_count = initial.samples[0].len() as usize;
-    for _ch in 0..channels {
-        println!("Sample count in Frame: {}", sample_count);
-        /*  for sample in 0..sample_count {
-            
-        }*/
+    for ch in 0..channels {
+        // TODO: This can be done more effectively. We can just map Frame.samples from the start
+        // and then get to use .into_iter() instead of .iter(), which is good since we don't need
+        // the samples after we cast them to i32
+        frame_buffer = initial.samples[ch].iter().map(|x| x.to_i32()).collect::<Vec<i32>>();
+        LittleEndian::from_slice_i32(&mut frame_buffer);
+        hashers[ch].input(as_u8_slice(&frame_buffer));
     }
 
-    /*
-    for frame in decoder {
-        
-    }*/
-    // Get channels -- DONE
-    // Allocate hashers (SmallVec)
+    for result in decoder {
+        let frame = match result {
+            Ok(fr) => fr,
+            _ => continue,
+        };
+        for ch in 0..channels {
+            frame_buffer = frame.samples[ch].iter().map(|x| x.to_i32()).collect::<Vec<i32>>();
+            LittleEndian::from_slice_i32(&mut frame_buffer);
+            hashers[ch].input(as_u8_slice(&frame_buffer));
+        }
+    }
+
     // Iterate over frames
     // Copy flac_check() logic for speed
-    //let channels = decoder.
-    Ok(Checksum::default())
+    Ok(Checksum::new_xor(hashers.into_iter().map(|x| x.result())))
 }
 
 pub fn hash_audio(file_path: &PathBuf) -> Result<Checksum, CheckError> {
-    let ftype = get_filetype(file_path)?;
-    match ftype {
+    let file_type = get_filetype(file_path)?;
+    match file_type {
         Filetype::FLAC => Ok(flac_hash(file_path)?),
         Filetype::MP3 => Ok(mp3_hash(file_path)?),
         _ => unimplemented!(),

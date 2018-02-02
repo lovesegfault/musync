@@ -16,8 +16,8 @@ use std::path::PathBuf;
 
 pub fn check_songs() {
     let songs = vec![
-        PathBuf::from("/home/bemeurer/src/musync/data/mono-sweep-1Hz-96KHz.mp3"),
-        PathBuf::from("/home/bemeurer/src/musync/data/stereo-sweep-1Hz-96KHz.mp3"),
+        PathBuf::from("./data/mono-sweep-1Hz-96KHz.mp3"),
+        PathBuf::from("./data/stereo-sweep-1Hz-96KHz.mp3"),
     ];
 
     for song in songs {
