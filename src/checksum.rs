@@ -11,6 +11,7 @@ use super::smallvec::SmallVec;
 use super::simplemad::{Decoder, Frame, SimplemadError};
 use super::simplemad_sys::MadMode;
 use super::claxon;
+use super::lewton::{inside_ogg, VorbisError};
 
 //use self::rayon::prelude::*;
 
@@ -105,11 +106,12 @@ impl fmt::Display for Filetype {
 
 pub enum CheckError {
     FError(String),
-    MagicError(MagicError),
-    ClaxonError(claxon::Error),
     FiletypeError(String),
     IOError(io::Error),
+    MagicError(MagicError),
+    ClaxonError(claxon::Error),
     SimplemadError(SimplemadError),
+    VorbisError(VorbisError),
 }
 
 impl fmt::Display for CheckError {
@@ -121,6 +123,7 @@ impl fmt::Display for CheckError {
             CheckError::FiletypeError(ref e) => write!(f, "Filetype error: {}", e),
             CheckError::IOError(ref e) => write!(f, "IO error: {}", e),
             CheckError::SimplemadError(ref e) => write!(f, "Simplemad error: {:?}", e),
+            CheckError::VorbisError(ref e) => write!(f, "Vorbis error: {:?}", e),
         }
     }
 }
@@ -161,11 +164,21 @@ impl From<MagicError> for CheckError {
     }
 }
 
-fn find_magic(cookie: &Cookie) -> Result<(), CheckError> {
-    match cookie.load(&["/usr/share/file/misc/magic"]) {
-        Ok(_) => return Ok(()),
-        Err(_) => Err(CheckError::FError("Failed to locate libmagic\n".to_owned())),
+impl From<VorbisError> for CheckError {
+    fn from(err: VorbisError) -> Self {
+        CheckError::VorbisError(err)
     }
+}
+
+fn find_magic(cookie: &Cookie) -> Result<(), CheckError> {
+    let possible_paths = vec!["/usr/share/file/misc/magic", "/usr/local/share/misc/magic"];
+    for path in possible_paths {
+        match cookie.load(&[path]) {
+            Ok(_) => return Ok(()),
+            Err(_) => continue,
+        }
+    }
+    Err(CheckError::FError("Failed to locate libmagic\n".to_owned()))
 }
 
 fn get_filetype(file_path: &PathBuf, cookie: &Cookie) -> Result<Filetype, CheckError> {
@@ -252,6 +265,22 @@ fn flac_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
     }
 
     Ok(Checksum::new_xor(hashers.into_iter().map(|x| x.result())))
+}
+
+fn vorbis_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
+    let f = File::open(file_path)?;
+    let decoder = inside_ogg::OggStreamReader::new(f)?;
+
+    let channels = decoder.ident_hdr.audio_channels as usize;
+
+    // We use a SmallVec to allocate our hashers (up to 8, because if the audio
+    // file has more than 8 channels then God save us) on the stack for faster
+    // access. Excess hashers will spill over to heap causing slowdown.
+    let mut hashers: SmallVec<[Blake2b; 8]> =
+        ::std::iter::repeat(Blake2b::new()).take(channels).collect();
+
+    // Placeholder
+    Ok(Checksum::default())
 }
 
 fn mp3_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {

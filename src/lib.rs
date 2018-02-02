@@ -2,6 +2,7 @@
 extern crate blake2;
 extern crate byteorder;
 extern crate claxon;
+extern crate lewton;
 extern crate magic;
 #[macro_use]
 extern crate serde_derive;
@@ -38,12 +39,20 @@ pub fn check_songs() {
         let min = sample_times.iter().min().unwrap();
         let max = sample_times.iter().max().unwrap();
         let avg: i64 = sample_times.iter().sum::<i64>() / sample_times.len() as i64;
-        let stddev = (sample_times.iter().map(|v| (v - avg) as f64).map(|v| v * v).sum::<f64>() / (sample_times.len() - 1) as f64).sqrt() as i64;
+        let stddev = (sample_times
+            .iter()
+            .map(|v| (v - avg) as f64)
+            .map(|v| v * v)
+            .sum::<f64>() / (sample_times.len() - 1) as f64)
+            .sqrt() as i64;
         hashes.dedup();
         println!("hash: {:?}", hashes);
         if hashes.len() != 1 {
             panic!("Bug! Inconsistent hash calculation.")
         }
-        println!("---- min: {}; avg: {}; max: {}; stddev: {}", min, avg, max, stddev);
+        println!(
+            "---- min: {}; avg: {}; max: {}; stddev: {}",
+            min, avg, max, stddev
+        );
     }
 }
