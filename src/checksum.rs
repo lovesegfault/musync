@@ -171,14 +171,10 @@ impl From<VorbisError> for CheckError {
 }
 
 fn find_magic(cookie: &Cookie) -> Result<(), CheckError> {
-    let possible_paths = vec!["/usr/share/file/misc/magic", "/usr/local/share/misc/magic"];
-    for path in possible_paths {
-        match cookie.load(&[path]) {
-            Ok(_) => return Ok(()),
-            Err(_) => continue,
-        }
+    match cookie.load::<&str>(&[]) {
+        Ok(_) => Ok(()),
+        Err(_) => Err(CheckError::FError("Failed to locate libmagic\n".to_owned())),
     }
-    Err(CheckError::FError("Failed to locate libmagic\n".to_owned()))
 }
 
 fn get_filetype(file_path: &PathBuf, cookie: &Cookie) -> Result<Filetype, CheckError> {
@@ -267,6 +263,7 @@ fn flac_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
     Ok(Checksum::new_xor(hashers.into_iter().map(|x| x.result())))
 }
 
+/*
 fn vorbis_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
     let f = File::open(file_path)?;
     let decoder = inside_ogg::OggStreamReader::new(f)?;
@@ -282,6 +279,7 @@ fn vorbis_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
     // Placeholder
     Ok(Checksum::default())
 }
+*/
 
 fn mp3_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
     let f = File::open(file_path)?;
