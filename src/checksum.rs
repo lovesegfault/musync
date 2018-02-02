@@ -236,11 +236,8 @@ fn mp3_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
     let mut hashers: SmallVec<[Blake2b; 2]> = SmallVec::from_buf(Default::default());
     let mut channels = 0;
 
-    for result in decoder {
-        let mut frame = match result {
-            Ok(fr) => fr,
-            _ => continue,
-        };
+    // Skip errored-out frames, as simplemad tries to parse metadata as audio too
+    for mut frame in decoder.filter_map(|f| f.ok()) {
         channels = match frame.mode {
             MadMode::SingleChannel => 1,
             _ => 2,
