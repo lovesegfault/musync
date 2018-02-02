@@ -183,6 +183,15 @@ fn i32_as_u8_slice(buf: &[i32]) -> &[u8] {
     unsafe { as_u8_slice(buf) }
 }
 
+unsafe fn as_i32_slice<T: Copy>(buf: &mut [T]) -> &mut [i32] {
+    debug_assert_eq!(::std::mem::size_of::<T>() % 4, 0);
+    ::std::slice::from_raw_parts_mut(buf.as_ptr() as *mut i32, buf.len() * (::std::mem::size_of::<T>() / 4))
+}
+
+fn madfixed_as_i32_slice(buf: &mut [::simplemad::MadFixed32]) -> &mut [i32] {
+    unsafe { as_i32_slice(buf) }
+}
+
 fn flac_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
     let mut reader = claxon::FlacReader::open(file_path)?;
 
@@ -219,7 +228,7 @@ fn mp3_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
     let f = File::open(file_path)?;
     let mut decoder = Decoder::decode(f)?;
 
-    let initial: Frame;
+    let mut initial: Frame;
     'skip_md: loop {
         match decoder.get_frame() {
             Ok(frame) => {
@@ -245,24 +254,20 @@ fn mp3_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
     // limit of the MP3 format) on the stack for faster access. Excess hashers
     // will spill over to heap causing slowdown.
     let mut hashers = SmallVec::<[Blake2b; 2]>::from(vec![Blake2b::new(); channels]);
-    let mut frame_buffer: Vec<i32> = Vec::with_capacity(2000);
 
     for ch in 0..channels {
-        // TODO: This can be done more effectively. We can just map Frame.samples from the start
-        // and then get to use .into_iter() instead of .iter(), which is good since we don't need
-        // the samples after we cast them to i32
-        frame_buffer = initial.samples[ch].iter().map(|x| x.to_i32()).collect::<Vec<i32>>();
+        let mut frame_buffer = madfixed_as_i32_slice(&mut initial.samples[ch]);
         LittleEndian::from_slice_i32(&mut frame_buffer);
         hashers[ch].input(i32_as_u8_slice(&frame_buffer));
     }
 
     for result in decoder {
-        let frame = match result {
+        let mut frame = match result {
             Ok(fr) => fr,
             _ => continue,
         };
         for ch in 0..channels {
-            frame_buffer = frame.samples[ch].iter().map(|x| x.to_i32()).collect::<Vec<i32>>();
+            let mut frame_buffer = madfixed_as_i32_slice(&mut frame.samples[ch]);
             LittleEndian::from_slice_i32(&mut frame_buffer);
             hashers[ch].input(i32_as_u8_slice(&frame_buffer));
         }
