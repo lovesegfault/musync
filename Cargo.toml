@@ -12,6 +12,7 @@ categories = ["multimedia::encoding", "multimedia::audio"]
 magic = "0.12"      # File Identification
 claxon = "0.4"      # Flac Decoder
 simplemad = "0.8"   # MPEG decoder
+simplemad_sys = "0.5"
 # Checksums
 serde_derive = "1.0"
 time="*"            # Benchmarking

@@ -9,6 +9,7 @@ use super::byteorder::{ByteOrder, LittleEndian};
 use super::magic::{Cookie, CookieFlags, MagicError};
 use super::smallvec::SmallVec;
 use super::simplemad::{Decoder, Frame, SimplemadError};
+use super::simplemad_sys::MadMode;
 use super::claxon;
 
 //use self::rayon::prelude::*;
@@ -22,7 +23,7 @@ impl Checksum {
         Checksum { checksum: a }
     }
 
-    fn new_xored<II: AsRef<[u8]>, I: IntoIterator<Item = II>>(slices: I) -> Self {
+    fn new_xor<II: AsRef<[u8]>, I: IntoIterator<Item=II>>(slices: I) -> Self {
         let mut res = Checksum::default();
         {
             let acc = &mut res.checksum;
@@ -174,14 +175,18 @@ fn get_filetype(fpath: &PathBuf) -> Result<Filetype, CheckError> {
     }
 }
 
-fn as_u8_slice(buf: &[i32]) -> &[u8] {
-    let b: &[u8] =
-        unsafe { ::std::slice::from_raw_parts(buf.as_ptr() as *const u8, buf.len() * 4) };
+fn as_u8_slice<T: Copy>(buf: &[T]) -> &[u8] {
+    let b: &[u8] = unsafe {
+        ::std::slice::from_raw_parts(
+            buf.as_ptr() as *const u8,
+            buf.len() * ::std::mem::size_of::<T>(),
+        )
+    };
     b
 }
 
-fn flac_check(fpath: &PathBuf) -> Result<Checksum, CheckError> {
-    let mut reader = claxon::FlacReader::open(fpath)?;
+fn flac_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
+    let mut reader = claxon::FlacReader::open(file_path)?;
 
     let channels = reader.streaminfo().channels as usize;
 
@@ -209,24 +214,64 @@ fn flac_check(fpath: &PathBuf) -> Result<Checksum, CheckError> {
         }
     }
 
-    Ok(Checksum::new_xored(hashers.into_iter().map(|x| x.result())))
+    Ok(Checksum::new_xor(hashers.into_iter().map(|x| x.result())))
 }
 
-fn mp3_check(fpath: &PathBuf) -> Result<Checksum, CheckError> {
-    let f = File::open(fpath)?;
-    let decoder = Decoder::decode(f)?;
-    // Get channels
+fn mp3_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
+    let f = File::open(file_path)?;
+    let mut decoder = Decoder::decode(f)?;
+
+    let initial: Frame;
+    'skip_md: loop {
+        match decoder.get_frame() {
+            Ok(frame) => {
+                initial = frame;
+                break 'skip_md;
+            }
+            // libmad is moronic and reads metadata as audio, so we ignore errors ¯\_(ツ)_/¯
+            Err(_) => {
+                continue;
+            }
+        }
+    }
+
+    // Initial setup
+    // We do it this way because Decoder does not provide the necessary information about the file for hasher allocation et al
+    let channels = match initial.mode {
+        MadMode::SingleChannel => 1,
+        _ => 2,
+    };
+
+    // We use a SmallVec to allocate our hashers (at most 2 because that's the
+    // limit of the MP3 format) on the stack for faster access. Excess hashers
+    // will spill over to heap causing slowdown.
+    let mut _hashers = SmallVec::<[Blake2b; 2]>::from(vec![Blake2b::new(); channels]);
+
+    let sample_count = initial.samples[0].len() as usize;
+    for _ch in 0..channels {
+        println!("Sample count in Frame: {}", sample_count);
+        /*  for sample in 0..sample_count {
+            
+        }*/
+    }
+
+    /*
+    for frame in decoder {
+        
+    }*/
+    // Get channels -- DONE
     // Allocate hashers (SmallVec)
     // Iterate over frames
     // Copy flac_check() logic for speed
     //let channels = decoder.
+    Ok(Checksum::default())
 }
 
-pub fn check_file(fpath: &PathBuf) -> Result<Checksum, CheckError> {
-    let ftype = get_filetype(fpath)?;
+pub fn hash_audio(file_path: &PathBuf) -> Result<Checksum, CheckError> {
+    let ftype = get_filetype(file_path)?;
     match ftype {
-        Filetype::FLAC => Ok(flac_check(fpath)?),
-        Filetype::MP3 => Ok(mp3_check(fpath)?),
+        Filetype::FLAC => Ok(flac_hash(file_path)?),
+        Filetype::MP3 => Ok(mp3_hash(file_path)?),
         _ => unimplemented!(),
     }
 }
@@ -245,14 +290,14 @@ mod tests {
 
     type Config = HashMap<String, String>;
 
-    fn get_config(ftype: Filetype) -> Config {
+    fn get_config(file_type: Filetype) -> Config {
         let cfg_path = PathBuf::from("./data/hashes.toml");
         let mut input = String::new();
         File::open(cfg_path)
             .and_then(|mut f| f.read_to_string(&mut input))
             .unwrap();
         let mut cfg: HashMap<String, Config> = toml::from_str(&input).unwrap();
-        match ftype {
+        match file_type {
             Filetype::FLAC => return cfg.remove("flac").unwrap(),
             Filetype::MP3 => return cfg.remove("mp3").unwrap(),
             Filetype::Opus => return cfg.remove("opus").unwrap(),
@@ -269,17 +314,19 @@ mod tests {
     }
 
     #[test]
-    fn test_flac_check() {
+    fn test_flac_hash() {
         let cfg = get_config(Filetype::FLAC);
         for pair in cfg.iter() {
             let fpath = PathBuf::from("./data/test.flac")
                 .with_file_name(pair.0)
                 .with_extension("flac");
-
-            println!("Testing {:?}", fpath);
-            let check = flac_check(&fpath).unwrap();
-            println!("---- check={}", check);
+            let check = flac_hash(&fpath).unwrap();
             assert_eq!(check, Checksum::from(pair.1));
         }
+    }
+
+    #[test]
+    fn test_mp3_hash() {
+        ()
     }
 }

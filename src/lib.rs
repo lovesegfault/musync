@@ -6,6 +6,7 @@ extern crate magic;
 #[macro_use]
 extern crate serde_derive;
 extern crate simplemad;
+extern crate simplemad_sys;
 extern crate smallvec;
 extern crate time;
 
@@ -15,13 +16,13 @@ use std::path::PathBuf;
 
 pub fn check_songs() {
     let songs = vec![
-        PathBuf::from("/home/bemeurer/src/musync/data/mono-sweep-1Hz-96KHz.flac"),
-        PathBuf::from("/home/bemeurer/src/musync/data/stereo-sweep-1Hz-96KHz.flac"),
+        PathBuf::from("/home/bemeurer/src/musync/data/mono-sweep-1Hz-96KHz.mp3"),
+        PathBuf::from("/home/bemeurer/src/musync/data/stereo-sweep-1Hz-96KHz.mp3"),
     ];
 
     for song in songs {
         let start = time::PreciseTime::now();
-        let check = match checksum::check_file(&song) {
+        let check = match checksum::hash_audio(&song) {
             Err(why) => panic!("{}", why),
             Ok(check) => check,
         };
