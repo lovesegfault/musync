@@ -171,11 +171,18 @@ impl From<VorbisError> for CheckError {
 }
 
 fn find_magic(cookie: &Cookie) -> Result<(), CheckError> {
-    let possible_paths = vec!["/usr/share/file/misc/magic", "/usr/local/share/misc/magic"];
+    let default_path = ::std::env::var_os("MAGIC");
+    let default_path = default_path.as_ref().map(|r| r.as_os_str());
+    let possible_paths = [
+        "/usr/share/misc/magic".as_ref(),
+        "/usr/share/file/misc/magic".as_ref(),
+        "/usr/local/share/misc/magic".as_ref(),
+    ];
+    let possible_paths = default_path.iter().chain(possible_paths.iter());
+
     for path in possible_paths {
-        match cookie.load(&[path]) {
-            Ok(_) => return Ok(()),
-            Err(_) => continue,
+        if cookie.load(&[path]).is_ok() {
+            return Ok(())
         }
     }
     Err(CheckError::FError("Failed to locate libmagic\n".to_owned()))
