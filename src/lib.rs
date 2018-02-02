@@ -40,7 +40,6 @@ pub fn check_songs() {
         let avg: i64 = sample_times.iter().sum::<i64>() / sample_times.len() as i64;
         let stddev = (sample_times.iter().map(|v| (v - avg) as f64).map(|v| v * v).sum::<f64>() / (sample_times.len() - 1) as f64).sqrt() as i64;
         hashes.dedup();
-        //println!("took: {:?}", sample_times);
         println!("hash: {:?}", hashes);
         if hashes.len() != 1 {
             panic!("Bug! Inconsistent hash calculation.")

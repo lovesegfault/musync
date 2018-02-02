@@ -249,8 +249,6 @@ fn mp3_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
         }
     }
 
-    // Iterate over frames
-    // Copy flac_check() logic for speed
     Ok(Checksum::new_xor(hashers.into_iter().take(channels).map(|x| x.result())))
 }
 
@@ -303,17 +301,24 @@ mod tests {
     #[test]
     fn test_flac_hash() {
         let cfg = get_config(Filetype::FLAC);
-        for pair in cfg.iter() {
-            let fpath = PathBuf::from("./data/test.flac")
+        for pair in cfg.into_iter() {
+            let file_path = PathBuf::from("./data/test.flac")
                 .with_file_name(pair.0)
                 .with_extension("flac");
-            let check = flac_hash(&fpath).unwrap();
-            assert_eq!(check, Checksum::from(pair.1));
+            let check = flac_hash(&file_path).unwrap();
+            assert_eq!(check, Checksum::from(&pair.1));
         }
     }
 
     #[test]
     fn test_mp3_hash() {
-        ()
+        let cfg = get_config(Filetype::MP3);
+        for pair in cfg.into_iter() {
+            let file_path = PathBuf::from("./data/test.mp3")
+                .with_file_name(pair.0)
+                .with_extension("mp3");
+            let check = mp3_hash(&file_path).unwrap();
+            assert_eq!(check, Checksum::from(&pair.1));
+        }
     }
 }
