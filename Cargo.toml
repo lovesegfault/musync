@@ -23,7 +23,7 @@ byteorder = "1"     # Endiannes Correction
 smallvec = "0.6"    # Stack-vectors
 #rayon = "0.9"       # Parallelism
 # Database
-sled="0.14"         # Database
+sled="0.15"         # Database
 # Misc
 #filetime = "0.1"
 #clap = "2"          # Argument parser
