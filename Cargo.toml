@@ -34,9 +34,6 @@ toml = "0.4"
 #tempdir = "0.3"
 #tempfile = "2.2"
 
-[build-dependencies]
-pkg-config = "0.3"
-
 [profile.release]
 opt-level = 3
 debug = true

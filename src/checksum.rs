@@ -183,7 +183,9 @@ fn get_filetype(file_path: &PathBuf, cookie: &Cookie) -> Result<Filetype, CheckE
         return Err(CheckError::FError(msg));
     }
 
-    let file_type = cookie.file(file_path).unwrap();
+    let file_type = cookie.file(file_path)?;
+
+    // TODO: Use magic::flags::MIME_TYPE
 
     if file_type.contains("FLAC") {
         Ok(Filetype::FLAC)
