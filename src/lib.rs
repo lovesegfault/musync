@@ -1,7 +1,7 @@
 extern crate blake2;
 extern crate byteorder;
 extern crate claxon;
-//extern crate lewton;
+extern crate lewton;
 extern crate magic;
 extern crate simplemad;
 extern crate simplemad_sys;
@@ -14,8 +14,8 @@ use std::path::PathBuf;
 
 pub fn check_songs() {
     let songs = vec![
-        PathBuf::from("./data/mono-sweep-1Hz-96KHz.mp3"),
-        PathBuf::from("./data/stereo-sweep-1Hz-96KHz.mp3"),
+        PathBuf::from("./data/mono-sweep-1Hz-96KHz.ogg"),
+        PathBuf::from("./data/stereo-sweep-1Hz-96KHz.ogg"),
     ];
 
     for song in songs {

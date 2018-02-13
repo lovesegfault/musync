@@ -11,7 +11,7 @@ use super::smallvec::SmallVec;
 use super::simplemad::{Decoder, SimplemadError};
 use super::simplemad_sys::MadMode;
 use super::claxon;
-//use super::lewton::{inside_ogg, VorbisError};
+use super::lewton::{inside_ogg, VorbisError};
 
 //use self::rayon::prelude::*;
 
@@ -111,7 +111,7 @@ pub enum CheckError {
     MagicError(MagicError),
     ClaxonError(claxon::Error),
     SimplemadError(SimplemadError),
-    //VorbisError(VorbisError),
+    VorbisError(VorbisError),
 }
 
 impl fmt::Display for CheckError {
@@ -123,7 +123,7 @@ impl fmt::Display for CheckError {
             CheckError::FiletypeError(ref e) => write!(f, "Filetype error: {}", e),
             CheckError::IOError(ref e) => write!(f, "IO error: {}", e),
             CheckError::SimplemadError(ref e) => write!(f, "Simplemad error: {:?}", e),
-            //CheckError::VorbisError(ref e) => write!(f, "Vorbis error: {:?}", e),
+            CheckError::VorbisError(ref e) => write!(f, "Vorbis error: {:?}", e),
         }
     }
 }
@@ -163,12 +163,12 @@ impl From<MagicError> for CheckError {
         CheckError::MagicError(err)
     }
 }
-/*
+
 impl From<VorbisError> for CheckError {
     fn from(err: VorbisError) -> Self {
         CheckError::VorbisError(err)
     }
-}*/
+}
 
 fn find_magic(cookie: &Cookie) -> Result<(), CheckError> {
     match cookie.load::<&str>(&[]) {
@@ -219,6 +219,11 @@ fn i32_as_u8_slice(buf: &[i32]) -> &[u8] {
 }
 
 #[inline]
+fn i16_as_u8_slice(buf: &[i16]) -> &[u8] {
+    unsafe { as_u8_slice(buf) }
+}
+
+#[inline]
 unsafe fn as_i32_slice<T: Copy>(buf: &mut [T]) -> &mut [i32] {
     debug_assert_eq!(::std::mem::size_of::<T>() % 4, 0);
     ::std::slice::from_raw_parts_mut(
@@ -265,10 +270,9 @@ fn flac_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
     Ok(Checksum::new_xor(hashers.into_iter().map(|x| x.result())))
 }
 
-/*
 fn vorbis_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
     let f = File::open(file_path)?;
-    let decoder = inside_ogg::OggStreamReader::new(f)?;
+    let mut decoder = inside_ogg::OggStreamReader::new(f)?;
 
     let channels = decoder.ident_hdr.audio_channels as usize;
 
@@ -278,10 +282,16 @@ fn vorbis_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
     let mut hashers: SmallVec<[Blake2b; 8]> =
         ::std::iter::repeat(Blake2b::new()).take(channels).collect();
 
-    // Placeholder
-    Ok(Checksum::default())
+    while let Some(mut block) = decoder.read_dec_packet_itl()? {
+        LittleEndian::from_slice_i16(&mut block);
+
+        for (hasher, chunk) in hashers.iter_mut().zip(block.chunks(block.len())) {
+            hasher.input(i16_as_u8_slice(chunk));
+        }
+    }
+
+    Ok(Checksum::new_xor(hashers.into_iter().map(|x| x.result())))
 }
-*/
 
 fn mp3_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
     let f = File::open(file_path)?;
@@ -321,6 +331,7 @@ pub fn hash_audio(file_path: &PathBuf) -> Result<Checksum, CheckError> {
     match file_type {
         Filetype::FLAC => Ok(flac_hash(file_path)?),
         Filetype::MP3 => Ok(mp3_hash(file_path)?),
+        Filetype::Vorbis => Ok(vorbis_hash(file_path)?),
         _ => unimplemented!(),
     }
 }
@@ -409,6 +420,16 @@ mod tests {
         for pair in cfg.into_iter() {
             let file_path = make_path(pair.0, &Filetype::MP3);
             let check = mp3_hash(&file_path).unwrap();
+            assert_eq!(check, Checksum::from(&pair.1));
+        }
+    }
+
+    #[test]
+    fn test_vorbis_hash() {
+        let cfg = get_config(&Filetype::Vorbis);
+        for pair in cfg.into_iter() {
+            let file_path = make_path(pair.0, &Filetype::Vorbis);
+            let check = vorbis_hash(&file_path).unwrap();
             assert_eq!(check, Checksum::from(&pair.1));
         }
     }
