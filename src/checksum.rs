@@ -383,7 +383,7 @@ mod tests {
             vec![
                 Filetype::FLAC,
                 Filetype::MP3,
-                // Filetype::Vorbis,
+                Filetype::Vorbis,
                 // Filetype::Opus,
                 // Filetype::WAV,
             ]
