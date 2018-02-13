@@ -282,11 +282,10 @@ fn vorbis_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
     let mut hashers: SmallVec<[Blake2b; 8]> =
         ::std::iter::repeat(Blake2b::new()).take(channels).collect();
 
-    while let Some(mut block) = decoder.read_dec_packet_itl()? {
-        LittleEndian::from_slice_i16(&mut block);
-
-        for (hasher, chunk) in hashers.iter_mut().zip(block.chunks(block.len())) {
-            hasher.input(i16_as_u8_slice(chunk));
+    while let Some(packet) = decoder.read_dec_packet()? {
+        for (hasher, mut chunk) in hashers.iter_mut().zip(packet.into_iter()) {
+            LittleEndian::from_slice_i16(&mut chunk);
+            hasher.input(i16_as_u8_slice(chunk.as_mut_slice()));
         }
     }
 
