@@ -13,9 +13,8 @@ magic = "0.12"      # File Identification
 claxon = "0.4"      # Flac Decoder
 simplemad = "0.8"   # MPEG decoder
 simplemad_sys = "0.5"
-lewton = "0.7"
+lewton = "0.8"
 # Checksums
-serde_derive = "1.0"
 time="*"            # Benchmarking
 blake2 = "0.7"      # Hasher (safe)
 #twox-hash = "1.1"   # Hasher (fast)

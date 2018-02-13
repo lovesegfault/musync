@@ -8,10 +8,10 @@ use super::blake2::{Blake2b, Digest};
 use super::byteorder::{ByteOrder, LittleEndian};
 use super::magic::{Cookie, CookieFlags, MagicError};
 use super::smallvec::SmallVec;
-use super::simplemad::{Decoder, Frame, SimplemadError};
+use super::simplemad::{Decoder, SimplemadError};
 use super::simplemad_sys::MadMode;
 use super::claxon;
-use super::lewton::{inside_ogg, VorbisError};
+//use super::lewton::{inside_ogg, VorbisError};
 
 //use self::rayon::prelude::*;
 
@@ -111,7 +111,7 @@ pub enum CheckError {
     MagicError(MagicError),
     ClaxonError(claxon::Error),
     SimplemadError(SimplemadError),
-    VorbisError(VorbisError),
+    //VorbisError(VorbisError),
 }
 
 impl fmt::Display for CheckError {
@@ -123,7 +123,7 @@ impl fmt::Display for CheckError {
             CheckError::FiletypeError(ref e) => write!(f, "Filetype error: {}", e),
             CheckError::IOError(ref e) => write!(f, "IO error: {}", e),
             CheckError::SimplemadError(ref e) => write!(f, "Simplemad error: {:?}", e),
-            CheckError::VorbisError(ref e) => write!(f, "Vorbis error: {:?}", e),
+            //CheckError::VorbisError(ref e) => write!(f, "Vorbis error: {:?}", e),
         }
     }
 }
@@ -163,12 +163,12 @@ impl From<MagicError> for CheckError {
         CheckError::MagicError(err)
     }
 }
-
+/*
 impl From<VorbisError> for CheckError {
     fn from(err: VorbisError) -> Self {
         CheckError::VorbisError(err)
     }
-}
+}*/
 
 fn find_magic(cookie: &Cookie) -> Result<(), CheckError> {
     match cookie.load::<&str>(&[]) {

@@ -1,11 +1,8 @@
-#![allow(unused_imports)]
 extern crate blake2;
 extern crate byteorder;
 extern crate claxon;
-extern crate lewton;
+//extern crate lewton;
 extern crate magic;
-#[macro_use]
-extern crate serde_derive;
 extern crate simplemad;
 extern crate simplemad_sys;
 extern crate smallvec;
