@@ -15,9 +15,10 @@ simplemad = "0.8"   # MPEG decoder
 simplemad_sys = "0.5"
 lewton = "0.8"
 # Checksums
+hex = "0.3"
 time="*"            # Benchmarking
 blake2 = "0.7"      # Hasher (safe)
-#twox-hash = "1.1"   # Hasher (fast)
+twox-hash = "1.1"   # Hasher (fast)
 byteorder = "1"     # Endiannes Correction
 smallvec = "0.6"    # Stack-vectors
 #rayon = "0.9"       # Parallelism
@@ -28,7 +29,6 @@ sled="0.15"         # Database
 #clap = "2"          # Argument parser
 
 [dev-dependencies]
-hex = "0.3"
 toml = "0.4"
 #tempdir = "0.3"
 #tempfile = "2.2"

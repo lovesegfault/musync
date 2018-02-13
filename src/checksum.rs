@@ -1,8 +1,10 @@
 use std::fmt;
 use std::io;
+use std::io::Read;
 use std::path::PathBuf;
 use std::fmt::Display;
 use std::fs::File;
+use std::hash::Hasher;
 
 use super::blake2::{Blake2b, Digest};
 use super::byteorder::{ByteOrder, LittleEndian};
@@ -12,6 +14,8 @@ use super::simplemad::{Decoder, SimplemadError};
 use super::simplemad_sys::MadMode;
 use super::claxon;
 use super::lewton::{inside_ogg, VorbisError};
+use super::twox_hash::XxHash;
+use super::hex::FromHex;
 
 //use self::rayon::prelude::*;
 
@@ -38,6 +42,13 @@ impl Checksum {
             }
         }
         res
+    }
+}
+
+impl<'a> From<&'a String> for Checksum {
+    fn from(s: &String) -> Self {
+        let arr: [u8; 64] = FromHex::from_hex(s).unwrap();
+        Checksum::new(arr)
     }
 }
 
@@ -323,6 +334,22 @@ fn mp3_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
     ))
 }
 
+pub fn hash_file(file_path: &PathBuf) -> Result<Checksum, CheckError> {
+    let mut f = File::open(file_path)?;
+    let mut hasher = XxHash::default();
+    let mut buf = [0; 4096];
+    loop {
+        let n = f.read(&mut buf)?;
+        if n == 0 {
+            break;
+        }
+        hasher.write(&buf[..n]);
+    }
+    // TODO: Is zero-padding the best approach? Or should we hash the Xxhash with Blake2b?
+    let res = &format!("{:0128x}", hasher.finish());
+    Ok(Checksum::from(res))
+}
+
 pub fn hash_audio(file_path: &PathBuf) -> Result<Checksum, CheckError> {
     let cookie = Cookie::open(CookieFlags::default()).unwrap();
     find_magic(&cookie)?;
@@ -337,11 +364,9 @@ pub fn hash_audio(file_path: &PathBuf) -> Result<Checksum, CheckError> {
 
 #[cfg(test)]
 mod tests {
-    extern crate hex;
     extern crate toml;
 
     use super::*;
-    use self::hex::FromHex;
 
     use std::collections::HashMap;
     use std::fs::File;
@@ -369,13 +394,6 @@ mod tests {
         PathBuf::from("./data/test.flac")
             .with_file_name(filename)
             .with_extension(format!("{:?}", extension))
-    }
-
-    impl<'a> From<&'a String> for Checksum {
-        fn from(s: &String) -> Self {
-            let arr: [u8; 64] = FromHex::from_hex(s).unwrap();
-            Checksum::new(arr)
-        }
     }
 
     impl Filetype {
