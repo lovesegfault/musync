@@ -6,6 +6,7 @@ fn main() {
     let songs = vec![
         PathBuf::from("./data/mono-sweep-1Hz-96KHz.flac"),
         PathBuf::from("./data/stereo-sweep-1Hz-96KHz.flac"),
+        PathBuf::from("./data/stereo-sweep-1Hz-96KHz-2.flac"),
     ];
 
     musync::bench_checksum(
