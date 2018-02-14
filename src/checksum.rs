@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::fmt::Display;
 use std::fs::File;
 use std::hash::Hasher;
+use std::result;
 
 use super::blake2::{Blake2b, Digest};
 use super::byteorder::{ByteOrder, LittleEndian};
@@ -181,14 +182,16 @@ impl From<VorbisError> for CheckError {
     }
 }
 
-fn find_magic(cookie: &Cookie) -> Result<(), CheckError> {
+pub type Result = result::Result<Checksum, CheckError>;
+
+fn find_magic(cookie: &Cookie) -> result::Result<(), CheckError> {
     match cookie.load::<&str>(&[]) {
         Ok(_) => Ok(()),
         Err(_) => Err(CheckError::FError("Failed to locate libmagic\n".to_owned())),
     }
 }
 
-fn get_filetype(file_path: &PathBuf, cookie: &Cookie) -> Result<Filetype, CheckError> {
+fn get_filetype(file_path: &PathBuf, cookie: &Cookie) -> result::Result<Filetype, CheckError> {
     if !file_path.exists() {
         let msg = format!("File '{:?}' failed to open.", file_path);
         return Err(CheckError::FError(msg));
@@ -248,7 +251,7 @@ fn madfixed_as_i32_slice(buf: &mut [::simplemad::MadFixed32]) -> &mut [i32] {
     unsafe { as_i32_slice(buf) }
 }
 
-fn flac_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
+fn flac_hash(file_path: &PathBuf) -> Result {
     let mut reader = claxon::FlacReader::open(file_path)?;
 
     let channels = reader.streaminfo().channels as usize;
@@ -281,7 +284,7 @@ fn flac_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
     Ok(Checksum::new_xor(hashers.into_iter().map(|x| x.result())))
 }
 
-fn vorbis_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
+fn vorbis_hash(file_path: &PathBuf) -> Result {
     let f = File::open(file_path)?;
     let mut decoder = inside_ogg::OggStreamReader::new(f)?;
 
@@ -303,7 +306,7 @@ fn vorbis_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
     Ok(Checksum::new_xor(hashers.into_iter().map(|x| x.result())))
 }
 
-fn mp3_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
+fn mp3_hash(file_path: &PathBuf) -> Result {
     let f = File::open(file_path)?;
     let decoder = Decoder::decode(f)?;
 
@@ -334,7 +337,7 @@ fn mp3_hash(file_path: &PathBuf) -> Result<Checksum, CheckError> {
     ))
 }
 
-pub fn hash_file(file_path: &PathBuf) -> Result<Checksum, CheckError> {
+pub fn hash_file(file_path: &PathBuf) -> Result {
     let mut f = File::open(file_path)?;
     let mut hasher = XxHash::default();
     let mut buf = [0; 4096];
@@ -350,7 +353,7 @@ pub fn hash_file(file_path: &PathBuf) -> Result<Checksum, CheckError> {
     Ok(Checksum::from(res))
 }
 
-pub fn hash_audio(file_path: &PathBuf) -> Result<Checksum, CheckError> {
+pub fn hash_audio(file_path: &PathBuf) -> Result {
     let cookie = Cookie::open(CookieFlags::default()).unwrap();
     find_magic(&cookie)?;
     let file_type = get_filetype(file_path, &cookie)?;

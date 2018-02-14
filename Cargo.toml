@@ -25,6 +25,8 @@ smallvec = "0.6"    # Stack-vectors
 # Database
 sled="0.15"         # Database
 # Misc
+pretty_toa = "1"
+termcolor = "0.3"
 #filetime = "0.1"
 #clap = "2"          # Argument parser
 

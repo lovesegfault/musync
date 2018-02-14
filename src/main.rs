@@ -7,6 +7,16 @@ fn main() {
         PathBuf::from("./data/mono-sweep-1Hz-96KHz.flac"),
         PathBuf::from("./data/stereo-sweep-1Hz-96KHz.flac"),
     ];
-    musync::check_file(&songs);
-    musync::check_audio(&songs);
+
+    musync::bench_checksum(
+        "Performing (fast) file hashes: ".to_owned(),
+        &songs,
+        &musync::checksum::hash_file,
+    );
+
+    musync::bench_checksum(
+        "Performing (slow) audio hashes: ".to_owned(),
+        &songs,
+        &musync::checksum::hash_audio,
+    );
 }
