@@ -1,6 +1,5 @@
 use std::fmt;
 use std::io;
-use std::io::Read;
 use std::path::PathBuf;
 use std::fmt::Display;
 use std::fs::File;
@@ -337,20 +336,24 @@ fn mp3_hash(file_path: &PathBuf) -> Result {
     ))
 }
 
+struct HasherWriter<H>(pub H);
+
+impl<H: Hasher> ::std::io::Write for HasherWriter<H> {
+    fn write(&mut self, data: &[u8]) -> ::std::io::Result<usize> {
+        self.0.write(data);
+        Ok(data.len())
+    }
+
+    fn flush(&mut self) -> ::std::io::Result<()> { Ok(()) }
+}
+
 pub fn hash_file(file_path: &PathBuf) -> Result {
     let mut f = File::open(file_path)?;
-    let mut hasher = XxHash::default();
-    let mut buf = [0; 4096];
-    loop {
-        let n = f.read(&mut buf)?;
-        if n == 0 {
-            break;
-        }
-        hasher.write(&buf[..n]);
-    }
-    // TODO: Is zero-padding the best approach? Or should we hash the Xxhash with Blake2b?
-    let res = &format!("{:0128x}", hasher.finish());
-    Ok(Checksum::from(res))
+    let mut hasher = HasherWriter(XxHash::default());
+    ::std::io::copy(&mut f, &mut hasher)?;
+    let mut hash = [0u8; 64];
+    LittleEndian::write_u64(&mut hash, hasher.0.finish());
+    Ok(Checksum::new(hash))
 }
 
 pub fn hash_audio(file_path: &PathBuf) -> Result {
