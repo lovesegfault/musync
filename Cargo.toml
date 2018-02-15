@@ -38,4 +38,5 @@ toml = "0.4"
 [profile.release]
 opt-level = 3
 debug = true
-lto = true
+#lto = true
+codegen-units = 1
