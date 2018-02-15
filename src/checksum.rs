@@ -344,7 +344,9 @@ impl<H: Hasher> ::std::io::Write for HasherWriter<H> {
         Ok(data.len())
     }
 
-    fn flush(&mut self) -> ::std::io::Result<()> { Ok(()) }
+    fn flush(&mut self) -> ::std::io::Result<()> {
+        Ok(())
+    }
 }
 
 pub fn hash_file(file_path: &PathBuf) -> Result {
@@ -427,33 +429,27 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_flac_hash() {
-        let cfg = get_config(&Filetype::FLAC);
+    fn test_audio_hash(file_type: Filetype, f_hash: &Fn(&PathBuf) -> Result) {
+        let cfg = get_config(&file_type);
         for pair in cfg.into_iter() {
-            let file_path = make_path(pair.0, &Filetype::FLAC);
-            let check = flac_hash(&file_path).unwrap();
+            let file_path = make_path(pair.0, &file_type);
+            let check = f_hash(&file_path).unwrap();
             assert_eq!(check, Checksum::from(&pair.1));
         }
+    }
+
+    #[test]
+    fn test_flac_hash() {
+        test_audio_hash(Filetype::FLAC, &flac_hash);
     }
 
     #[test]
     fn test_mp3_hash() {
-        let cfg = get_config(&Filetype::MP3);
-        for pair in cfg.into_iter() {
-            let file_path = make_path(pair.0, &Filetype::MP3);
-            let check = mp3_hash(&file_path).unwrap();
-            assert_eq!(check, Checksum::from(&pair.1));
-        }
+        test_audio_hash(Filetype::MP3, &mp3_hash);
     }
 
     #[test]
     fn test_vorbis_hash() {
-        let cfg = get_config(&Filetype::Vorbis);
-        for pair in cfg.into_iter() {
-            let file_path = make_path(pair.0, &Filetype::Vorbis);
-            let check = vorbis_hash(&file_path).unwrap();
-            assert_eq!(check, Checksum::from(&pair.1));
-        }
+        test_audio_hash(Filetype::Vorbis, &vorbis_hash)
     }
 }
