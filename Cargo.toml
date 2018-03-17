@@ -11,9 +11,10 @@ categories = ["multimedia::encoding", "multimedia::audio"]
 # Audio decoders
 magic = "0.12"      # File Identification
 claxon = "0.4"      # Flac Decoder
-simplemad = "0.8"   # MPEG decoder
+simplemad = "0.9"   # MPEG decoder
 simplemad_sys = "0.5"
 lewton = "0.8"
+hound = "3"
 # Checksums
 hex = "0.3"
 time="*"            # Benchmarking
