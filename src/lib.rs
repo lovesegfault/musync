@@ -2,6 +2,7 @@ extern crate blake2;
 extern crate byteorder;
 extern crate claxon;
 extern crate hex;
+extern crate hound;
 extern crate lewton;
 extern crate magic;
 extern crate pretty_toa;

@@ -16,6 +16,7 @@ use super::claxon;
 use super::lewton::{inside_ogg, VorbisError};
 use super::twox_hash::XxHash;
 use super::hex::FromHex;
+use super::hound;
 
 //use self::rayon::prelude::*;
 
@@ -123,6 +124,7 @@ pub enum CheckError {
     ClaxonError(claxon::Error),
     SimplemadError(SimplemadError),
     VorbisError(VorbisError),
+    HoundError(hound::Error),
 }
 
 impl fmt::Display for CheckError {
@@ -135,6 +137,7 @@ impl fmt::Display for CheckError {
             CheckError::IOError(ref e) => write!(f, "IO error: {}", e),
             CheckError::SimplemadError(ref e) => write!(f, "Simplemad error: {:?}", e),
             CheckError::VorbisError(ref e) => write!(f, "Vorbis error: {:?}", e),
+            CheckError::HoundError(ref e) => write!(f, "Hound error: {:?}", e),
         }
     }
 }
@@ -142,6 +145,12 @@ impl fmt::Display for CheckError {
 impl fmt::Debug for CheckError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Display::fmt(self, f)
+    }
+}
+
+impl From<hound::Error> for CheckError {
+    fn from(err: hound::Error) -> Self {
+        CheckError::HoundError(err)
     }
 }
 
@@ -303,6 +312,21 @@ fn vorbis_hash(file_path: &PathBuf) -> Result {
     }
 
     Ok(Checksum::new_xor(hashers.into_iter().map(|x| x.result())))
+}
+
+fn wav_hash(file_path: &PathBuf) -> Result {
+    let mut decoder = hound::WavReader::open(file_path)?;
+
+    let channels = decoder.spec().channels as usize;
+
+    let mut hashers: SmallVec<[Blake2b; 8]> =
+        ::std::iter::repeat(Blake2b::new()).take(channels).collect();
+
+    /*for sample in decoder.into_samples() {
+
+    }*/
+
+    Ok(Checksum::default())
 }
 
 fn mp3_hash(file_path: &PathBuf) -> Result {
