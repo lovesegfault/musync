@@ -1,22 +1,22 @@
 use std::fmt;
-use std::io;
-use std::path::PathBuf;
 use std::fmt::Display;
 use std::fs::File;
 use std::hash::Hasher;
+use std::io;
+use std::path::PathBuf;
 use std::result;
 
-use super::blake2::{Blake2b, Digest};
-use super::byteorder::{ByteOrder, LittleEndian};
-use super::magic::{Cookie, CookieFlags, MagicError};
-use super::smallvec::SmallVec;
-use super::simplemad::{Decoder, SimplemadError};
-use super::simplemad_sys::MadMode;
-use super::claxon;
-use super::lewton::{inside_ogg, VorbisError};
-use super::twox_hash::XxHash;
-use super::hex::FromHex;
-use super::hound;
+use blake2::{Blake2b, Digest};
+use byteorder::{ByteOrder, LittleEndian};
+use claxon;
+use hex::FromHex;
+use hound;
+use lewton::{inside_ogg, VorbisError};
+use magic::{Cookie, CookieFlags, MagicError};
+use simplemad::{Decoder, SimplemadError};
+use simplemad_sys::MadMode;
+use smallvec::SmallVec;
+use twox_hash::XxHash;
 
 //use self::rayon::prelude::*;
 
@@ -315,11 +315,11 @@ fn vorbis_hash(file_path: &PathBuf) -> Result {
 }
 
 fn wav_hash(file_path: &PathBuf) -> Result {
-    let mut decoder = hound::WavReader::open(file_path)?;
+    let decoder = hound::WavReader::open(file_path)?;
 
     let channels = decoder.spec().channels as usize;
 
-    let mut hashers: SmallVec<[Blake2b; 8]> =
+    let _hashers: SmallVec<[Blake2b; 8]> =
         ::std::iter::repeat(Blake2b::new()).take(channels).collect();
 
     /*for sample in decoder.into_samples() {

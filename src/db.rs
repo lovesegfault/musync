@@ -1,8 +1,6 @@
-extern crate sled;
+use sled;
 
-//use std::collections::{HashSet, HashMap};
 use std::path::PathBuf;
-//use std::fs;
 
 pub struct DB {
     tree: sled::Tree,

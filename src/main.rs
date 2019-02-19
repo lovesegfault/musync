@@ -1,4 +1,4 @@
-extern crate musync;
+use musync;
 
 use std::path::PathBuf;
 

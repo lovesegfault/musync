@@ -1,25 +1,10 @@
-extern crate blake2;
-extern crate byteorder;
-extern crate claxon;
-extern crate hex;
-extern crate hound;
-extern crate lewton;
-extern crate magic;
-extern crate pretty_toa;
-extern crate simplemad;
-extern crate simplemad_sys;
-extern crate smallvec;
-extern crate termcolor;
-extern crate time;
-extern crate twox_hash;
-
 pub mod checksum;
 
-use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
-use std::path::PathBuf;
-use std::io::Write;
-use checksum::Result;
+use crate::checksum::Result;
 use pretty_toa::ThousandsSep;
+use std::io::Write;
+use std::path::PathBuf;
+use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 pub fn print_res(samples: &[i64; 32]) {
     let mut stdout = StandardStream::stdout(ColorChoice::Always);
@@ -31,7 +16,8 @@ pub fn print_res(samples: &[i64; 32]) {
         .iter()
         .map(|v| (v - avg) as f64)
         .map(|v| v * v)
-        .sum::<f64>() / (samples.len() - 1) as f64)
+        .sum::<f64>()
+        / (samples.len() - 1) as f64)
         .sqrt() as i64;
     stdout
         .set_color(ColorSpec::new().set_fg(Some(Color::White)))
