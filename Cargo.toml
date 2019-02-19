@@ -9,30 +9,30 @@ categories = ["multimedia::encoding", "multimedia::audio"]
 
 [dependencies]
 # Audio decoders
-magic = "0.12"      # File Identification
-claxon = "0.4"      # Flac Decoder
-simplemad = "0.9"   # MPEG decoder
-simplemad_sys = "0.5"
-lewton = "0.8"
-hound = "3"
+magic = "0.12.2"
+claxon = "0.4.1"
+simplemad = "0.9.0"
+simplemad_sys = "0.5.0"
+lewton = "0.9.3"
+hound = "3.4.0"
 # Checksums
-hex = "0.3"
-time="*"            # Benchmarking
-blake2 = "0.7"      # Hasher (safe)
-twox-hash = "1.1"   # Hasher (fast)
-byteorder = "1"     # Endiannes Correction
-smallvec = "0.6"    # Stack-vectors
+hex = "0.3.2"
+time= "0.1.42"
+blake2 = "0.8.0"
+twox-hash = "1.1.2"
+byteorder = "1.3.1"
+smallvec = "0.6.9"
 #rayon = "0.9"       # Parallelism
 # Database
-sled="0.15"         # Database
+sled= "0.18.1"
 # Misc
-pretty_toa = "1"
-termcolor = "0.3"
+pretty_toa = "1.0.0"
+termcolor = "1.0.4"
 #filetime = "0.1"
 #clap = "2"          # Argument parser
 
 [dev-dependencies]
-toml = "0.4"
+toml = "0.4.10"
 #tempdir = "0.3"
 #tempfile = "2.2"
 
