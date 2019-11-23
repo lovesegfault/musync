@@ -53,7 +53,7 @@ pub fn print_res(samples: &[i64; 32]) {
     writeln!(&mut stdout, "Std. Deviation: {} ", stddev.thousands_sep()).unwrap();
 }
 
-pub fn bench_checksum(msg: String, songs: &Vec<PathBuf>, f: &Fn(&PathBuf) -> Result) {
+pub fn bench_checksum(msg: String, songs: &Vec<PathBuf>, f: &dyn Fn(&PathBuf) -> Result) {
     let mut stdout = StandardStream::stdout(ColorChoice::Always);
     stdout
         .set_color(ColorSpec::new().set_fg(Some(Color::White)))

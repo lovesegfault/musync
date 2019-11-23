@@ -11,29 +11,29 @@ categories = ["multimedia::encoding", "multimedia::audio"]
 [dependencies]
 # Audio decoders
 magic = "0.12.2"
-claxon = "0.4.1"
+claxon = "0.4.2"
 simplemad = "0.9.0"
 simplemad_sys = "0.5.0"
-lewton = "0.9.3"
+lewton = "0.9.4"
 hound = "3.4.0"
 # Checksums
-hex = "0.3.2"
+hex = "0.4.0"
 time= "0.1.42"
-blake2 = "0.8.0"
-twox-hash = "1.1.2"
-byteorder = "1.3.1"
-smallvec = "0.6.9"
+blake2 = "0.8.1"
+twox-hash = "1.5.0"
+byteorder = "1.3.2"
+smallvec = "1.0.0"
 #rayon = "0.9"       # Parallelism
 # Database
-sled= "0.18.1"
+sled= "0.29.2"
 # Misc
 pretty_toa = "1.0.0"
-termcolor = "1.0.4"
+termcolor = "1.0.5"
 #filetime = "0.1"
 #clap = "2"          # Argument parser
 
 [dev-dependencies]
-toml = "0.4.10"
+toml = "0.5.5"
 #tempdir = "0.3"
 #tempfile = "2.2"
 

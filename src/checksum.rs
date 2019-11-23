@@ -453,7 +453,7 @@ mod tests {
         }
     }
 
-    fn test_audio_hash(file_type: Filetype, f_hash: &Fn(&PathBuf) -> Result) {
+    fn test_audio_hash(file_type: Filetype, f_hash: &dyn Fn(&PathBuf) -> Result) {
         let cfg = get_config(&file_type);
         for pair in cfg.into_iter() {
             let file_path = make_path(pair.0, &file_type);
